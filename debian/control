@@ -1,0 +1,24 @@
+Source: profanity
+Section: net
+Priority: optional
+Maintainer: Dariusz Dwornikowski <dariusz.dwornikowski@cs.put.poznan.pl>
+Build-Depends: debhelper (>= 9), dh-autoreconf, libcaca-dev, libstrophe-dev, libotr5-dev
+Standards-Version: 3.9.5
+Homepage: http://profanity.im/
+Vcs-Git: git://anonscm.debian.org/collab-maint/profanity.git
+Vcs-Browser: http://anonscm.debian.org/?p=collab-maint/profanity.git;a=summary
+
+Package: profanity
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Console based XMPP client
+ Profanity is a console based XMPP client written in C, 
+ inspired by Irssi.
+ Supports:
+ .
+ XMPP chat services, including GoogleTalk and Facebook.
+ OTR message encryption
+ Roster management
+ Desktop notifications
+ Flexible resource and priority settings
+

@@ -1,0 +1,5 @@
+profanity (0.4.3-1) unstable; urgency=low
+
+  * Initial release (Closes: #745872)
+
+ -- Dariusz Dwornikowski <dariusz.dwornikowski@cs.put.poznan.pl>  Mon, 11 Aug 2014 10:16:57 +0200

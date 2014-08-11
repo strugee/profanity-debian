@@ -1,0 +1,2 @@
+version=3
+https://github.com/boothj5/profanity/releases .*/archive/(\d[\d\.]+)\.tar\.gz

@@ -1,0 +1,94 @@
+Description: fix various spelling errors
+Author: Dariusz Dwornikowski <dariusz.dwornikowski@cs.put.poznan.pl>
+Forwarded: https://github.com/boothj5/profanity/pull/395
+--- a/src/profanity.c
++++ b/src/profanity.c
+@@ -179,7 +179,7 @@
+ gboolean
+ process_input(char *inp)
+ {
+-    log_debug("Input recieved: %s", inp);
++    log_debug("Input received: %s", inp);
+     gboolean result = FALSE;
+     g_strstrip(inp);
+ 
+--- a/docs/profanity.1
++++ b/docs/profanity.1
+@@ -3,7 +3,7 @@
+ Profanity \- a simple console based XMPP chat client.
+ .SH SYNOPSIS
+ .B profanity
+-[-vhd] [-l level]
++[\-vhd] [\-l level]
+ .SH DESCRIPTION
+ .B Profanity
+ is a simple lightweight console based XMPP chat client.  It's emphasis is 
+@@ -23,7 +23,7 @@
+ .BI "\-a, \-\-account"
+ Auto connect to an account on startup.
+ .TP
+-.BI "\-d, \-\-disable-tls"
++.BI "\-d, \-\-disable\-tls"
+ Disable TLS for servers that either don't support it, or claim to but do not
+ complete the handshake.
+ .TP
+@@ -62,7 +62,7 @@
+ .PP
+ <https://github.com/boothj5/profanity>
+ .SH LICENSE
+-Copyright (C) 2012 - 2014 James Booth <boothj5web@gmail.com>.
++Copyright (C) 2012 \- 2014 James Booth <boothj5web@gmail.com>.
+ License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+ This is free software; you are free to change and redistribute it.
+ There is NO WARRANTY, to the extent permitted by law.
+--- a/src/xmpp/iq.c
++++ b/src/xmpp/iq.c
+@@ -155,7 +155,7 @@
+     if (id != NULL) {
+         log_error("IQ error received, id: %s.", id);
+     } else {
+-        log_error("IQ error recieved.");
++        log_error("IQ error received.");
+     }
+ 
+     return 1;
+@@ -434,7 +434,7 @@
+ _disco_info_result_handler(xmpp_conn_t * const conn, xmpp_stanza_t * const stanza,
+     void * const userdata)
+ {
+-    log_debug("Recieved diso#info response");
++    log_debug("Received diso#info response");
+     const char *id = xmpp_stanza_get_attribute(stanza, STANZA_ATTR_ID);
+     const char *from = xmpp_stanza_get_attribute(stanza, STANZA_ATTR_FROM);
+ 
+@@ -603,7 +603,7 @@
+     void * const userdata)
+ {
+ 
+-    log_debug("Recieved diso#items response");
++    log_debug("Received diso#items response");
+     const char *id = xmpp_stanza_get_attribute(stanza, STANZA_ATTR_ID);
+     const char *from = xmpp_stanza_get_attribute(stanza, STANZA_ATTR_FROM);
+     GSList *items = NULL;
+--- a/src/xmpp/message.c
++++ b/src/xmpp/message.c
+@@ -381,7 +381,7 @@
+ 
+     // room not active in profanity
+     if (!muc_room_is_active(jid->barejid)) {
+-        log_error("Message recieved for inactive chat room: %s", jid->str);
++        log_error("Message received for inactive chat room: %s", jid->str);
+         jid_destroy(jid);
+         return 1;
+     }
+--- a/src/command/command.c
++++ b/src/command/command.c
+@@ -513,7 +513,7 @@
+         { "/flash on|off", "Terminal flash on new messages.",
+         { "/flash on|off",
+           "-------------",
+-          "Make the terminal flash when incoming messages are recieved.",
++          "Make the terminal flash when incoming messages are received.",
+           "The flash will only occur if you are not in the chat window associated with the user sending the message.",
+           "If the terminal doesn't support flashing, it may attempt to beep.",
+           NULL } } },
