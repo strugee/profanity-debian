@@ -4,7 +4,7 @@ Priority: optional
 Maintainer: Dariusz Dwornikowski <dariusz.dwornikowski@cs.put.poznan.pl>
 Build-Depends: debhelper (>= 9), dh-autoreconf, libcaca-dev, libstrophe-dev, libotr5-dev
 Standards-Version: 3.9.5
-Homepage: http://profanity.im/
+Homepage: http://www.profanity.im/
 Vcs-Git: git://anonscm.debian.org/collab-maint/profanity.git
 Vcs-Browser: http://anonscm.debian.org/?p=collab-maint/profanity.git;a=summary
 
