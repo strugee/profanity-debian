@@ -13,7 +13,7 @@ Build-Depends:
  pkg-config,
  libexpat1-dev,
  libncursesw5-dev,
- ibcurl4-gnutls-dev
+ libcurl4-gnutls-dev
 Standards-Version: 3.9.5
 Homepage: http://www.profanity.im/
 Vcs-Git: git://anonscm.debian.org/collab-maint/profanity.git
