@@ -18,6 +18,18 @@
  * You should have received a copy of the GNU General Public License
  * along with Profanity.  If not, see <http://www.gnu.org/licenses/>.
  *
+ * In addition, as a special exception, the copyright holders give permission to
+ * link the code of portions of this program with the OpenSSL library under
+ * certain conditions as described in each individual source file, and
+ * distribute linked combinations including the two.
+ *
+ * You must obey the GNU General Public License in all respects for all of the
+ * code used other than OpenSSL. If you modify file(s) with this exception, you
+ * may extend this exception to your version of the file(s), but you are not
+ * obligated to do so. If you do not wish to do so, delete this exception
+ * statement from your version. If you delete this exception statement from all
+ * source files in the program, then also delete it here.
+ *
  */
 
 #include "config.h"
@@ -155,7 +167,7 @@ _error_handler(xmpp_conn_t * const conn, xmpp_stanza_t * const stanza,
     if (id != NULL) {
         log_error("IQ error received, id: %s.", id);
     } else {
-        log_error("IQ error recieved.");
+        log_error("IQ error received.");
     }
 
     return 1;
@@ -434,7 +446,7 @@ static int
 _disco_info_result_handler(xmpp_conn_t * const conn, xmpp_stanza_t * const stanza,
     void * const userdata)
 {
-    log_debug("Recieved diso#info response");
+    log_debug("Received diso#info response");
     const char *id = xmpp_stanza_get_attribute(stanza, STANZA_ATTR_ID);
     const char *from = xmpp_stanza_get_attribute(stanza, STANZA_ATTR_FROM);
 
@@ -603,7 +615,7 @@ _disco_items_result_handler(xmpp_conn_t * const conn, xmpp_stanza_t * const stan
     void * const userdata)
 {
 
-    log_debug("Recieved diso#items response");
+    log_debug("Received diso#items response");
     const char *id = xmpp_stanza_get_attribute(stanza, STANZA_ATTR_ID);
     const char *from = xmpp_stanza_get_attribute(stanza, STANZA_ATTR_FROM);
     GSList *items = NULL;
