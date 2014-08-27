@@ -18,6 +18,18 @@
  * You should have received a copy of the GNU General Public License
  * along with Profanity.  If not, see <http://www.gnu.org/licenses/>.
  *
+ * In addition, as a special exception, the copyright holders give permission to
+ * link the code of portions of this program with the OpenSSL library under
+ * certain conditions as described in each individual source file, and
+ * distribute linked combinations including the two.
+ *
+ * You must obey the GNU General Public License in all respects for all of the
+ * code used other than OpenSSL. If you modify file(s) with this exception, you
+ * may extend this exception to your version of the file(s), but you are not
+ * obligated to do so. If you do not wish to do so, delete this exception
+ * statement from your version. If you delete this exception statement from all
+ * source files in the program, then also delete it here.
+ *
  */
 
 #include <assert.h>
@@ -304,9 +316,9 @@ static struct cmd_t command_defs[] =
           NULL } } },
 
     { "/bookmark",
-        cmd_bookmark, parse_args, 1, 8, NULL,
-        { "/bookmark list|add|update|remove|join [room@server] [nick value] [password value] [autojoin on|off]", "Manage bookmarks.",
-        { "/bookmark list|add|update|remove|join [room@server] [nick value] [password value] [autojoin on|off]",
+        cmd_bookmark, parse_args, 0, 8, NULL,
+        { "/bookmark [list|add|update|remove|join] [room@server] [nick value] [password value] [autojoin on|off]", "Manage bookmarks.",
+        { "/bookmark [list|add|update|remove|join] [room@server] [nick value] [password value] [autojoin on|off]",
           "---------------------------------------------------------------------------------------------------",
           "Manage bookmarks.",
           "list: List all bookmarks.",
@@ -317,6 +329,7 @@ static struct cmd_t command_defs[] =
           "update: Update any of the above properties associated with the bookmark.",
           "remove: Remove the bookmark for room@server.",
           "join: Join room@server using the properties associated with the bookmark.",
+          "When in a chat room, the /bookmark command with no arguments will bookmark the current room with the current settings, and set autojoin to \"on\".",
           NULL } } },
 
     { "/disco",
@@ -513,7 +526,7 @@ static struct cmd_t command_defs[] =
         { "/flash on|off", "Terminal flash on new messages.",
         { "/flash on|off",
           "-------------",
-          "Make the terminal flash when incoming messages are recieved.",
+          "Make the terminal flash when incoming messages are received.",
           "The flash will only occur if you are not in the chat window associated with the user sending the message.",
           "If the terminal doesn't support flashing, it may attempt to beep.",
           NULL } } },
