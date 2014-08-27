@@ -1,2 +1,1 @@
-fix-spelling.patch
-drop-unneeded-ssl-linking.patch
+add-cflags-linking.patch

@@ -1,0 +1,11 @@
+--- a/configure.ac
++++ b/configure.ac
+@@ -9,7 +9,7 @@
+ 
+ ### Checks for programs.
+ AC_PROG_CC
+-
++CFLAGS = -lssl -lcrypto
+ ### Get canonical host
+ AC_CANONICAL_HOST
+ PLATFORM="unknown"
