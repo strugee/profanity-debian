@@ -10,17 +10,22 @@ License: GPL-3+ with OpenSSL exception
  binaries to be distributed linked against the OpenSSL libraries.
  All other obligations under the GPL v3 remain intact.
 
-
 Files: src/tools/p_sha1.*
 Copyright: Steve Reid <sreid@sea-to-sky.net>
            James H. Brown <jbrown@burgoyne.com>
            Saul Kravitz <Saul.Kravitz@celera.com>
            Ralph Giles <giles@artofcode.com>
 License: public-domain
+ You can use this free for any purpose. It's in the public domain. It has no
+ warranty
 
 Files: debian/*
 Copyright: 2014 Dariusz Dwornikowski <dariusz.dwornikowski@cs.put.poznan.pl>
 License: GPL-3+ with OpenSSL exception
+ As copyright holder, I give permission for profanity to be linked to
+ the OpenSSL libraries. This includes permission for profanity
+ binaries to be distributed linked against the OpenSSL libraries.
+ All other obligations under the GPL v3 remain intact.
 
 License: GPL-3+
  This program is free software: you can redistribute it and/or modify
