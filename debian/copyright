@@ -5,35 +5,20 @@ Source: http://github.com/boothj5/profanity
 Files: *
 Copyright: 2012-2014 James Booth <boothj5web@gmail.com>
 License: GPL-3+ with OpenSSL exception
- This program is free software: you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
- .
- This package is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
- .
- On Debian systems, the complete text of the GNU General
- Public License version 3 can be found in `/usr/share/common-licenses/GPL-3'.
- .
- As copyright holder, I give permission for profanity to be linked to
- the OpenSSL libraries. This includes permission for profanity
- binaries to be distributed linked against the OpenSSL libraries.
- All other obligations under the GPL v3 remain intact.
 
 Files: src/tools/p_sha1.*
-Copyright: Steve Reid <sreid@sea-to-sky.net>
-           James H. Brown <jbrown@burgoyne.com>
-           Saul Kravitz <Saul.Kravitz@celera.com>
-           Ralph Giles <giles@artofcode.com>
+Copyright: 1998 Steve Reid <sreid@sea-to-sky.net>
+           1998 James H. Brown <jbrown@burgoyne.com>
+           2001 Saul Kravitz <Saul.Kravitz@celera.com>
+           2002 Ralph Giles <giles@artofcode.com>
 License: public-domain
  You can use this free for any purpose. It's in the public domain. It has no
- warranty
+ warranty.
 
 Files: debian/*
 Copyright: 2014 Dariusz Dwornikowski <dariusz.dwornikowski@cs.put.poznan.pl>
+License: GPL-3+ with OpenSSL exception
+
 License: GPL-3+ with OpenSSL exception
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
