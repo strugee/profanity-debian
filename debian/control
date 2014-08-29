@@ -24,9 +24,10 @@ Package: profanity
 Architecture: any
 Depends: ${misc:Depends}, ${shlibs:Depends}
 Description: console based XMPP client
- Profanity is a console based XMPP (Jabber) client written in C and ncurses, inspired by Irssi.
+ Profanity is a console based instant messaging client for XMPP (Jabber) protocol based chat. 
+ It is written in C and ncurses, and is inspired by popular IRC client IRSSI. 
  .
- Profanity features are:
+ Profanity's features are:
  .
   * XMPP chat services, including GoogleTalk and Facebook.
   * OTR (off the record) message encryption.
