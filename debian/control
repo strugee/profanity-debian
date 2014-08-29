@@ -23,13 +23,17 @@ Vcs-Browser: http://anonscm.debian.org/?p=collab-maint/profanity.git;a=summary
 Package: profanity
 Architecture: any
 Depends: ${misc:Depends}, ${shlibs:Depends}
-Description: Console based XMPP client
- Profanity is a console based XMPP client written in C,
- inspired by Irssi.
- Supports:
+Description: console based XMPP client
+ Profanity is a console based XMPP (Jabber) client written in C and ncurses, inspired by Irssi.
  .
- XMPP chat services, including GoogleTalk and Facebook.
- OTR message encryption
- Roster management
- Desktop notifications
- Flexible resource and priority settings
+ Profanity features are:
+ .
+  * XMPP chat services, including GoogleTalk and Facebook.
+  * OTR (off the record) message encryption.
+  * Complex roster management with grouping.
+  * Desktop notifications via libnotify.
+  * Flexible resource and priority settings.
+  * Support for colorthemes.  
+  * Support for plugins in C, Python, Ruby, and Lua.
+  * MUC (multi user chatroom) support.
+
