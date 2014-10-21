@@ -1,6 +1,6 @@
 profanity (0.4.4-2) unstable; urgency=medium
 
-  * Added fix for FTBS on big endian architectures
+  * Added fix for FTBS on big endian architectures (Closes: #766171)
   * Bump standards to 3.9.6 no changes needed
 
  -- Dariusz Dwornikowski <dariusz.dwornikowski@cs.put.poznan.pl>  Tue, 21 Oct 2014 12:57:59 +0200
