@@ -125,12 +125,11 @@ _message_send_groupchat(const char * const msg, const char * const recipient)
 }
 
 static void
-_message_send_duck(const char * const query)
+_message_send_groupchat_subject(const char * const room, const char * const subject)
 {
     xmpp_conn_t * const conn = connection_get_conn();
     xmpp_ctx_t * const ctx = connection_get_ctx();
-    xmpp_stanza_t *message = stanza_create_message(ctx, "im@ddg.gg",
-        STANZA_TYPE_CHAT, query, NULL);
+    xmpp_stanza_t *message = stanza_create_room_subject_message(ctx, room, subject);
 
     xmpp_send(conn, message);
     xmpp_stanza_release(message);
@@ -361,10 +360,8 @@ _groupchat_handler(xmpp_conn_t * const conn,
     xmpp_stanza_t *subject = xmpp_stanza_get_child_by_name(stanza, STANZA_NAME_SUBJECT);
     if (subject != NULL) {
         message = xmpp_stanza_get_text(subject);
-        if (message != NULL) {
-            handle_room_subject(jid->barejid, message);
-            xmpp_free(ctx, message);
-        }
+        handle_room_subject(jid->barejid, jid->resourcepart, message);
+        xmpp_free(ctx, message);
 
         jid_destroy(jid);
         return 1;
@@ -392,7 +389,7 @@ _groupchat_handler(xmpp_conn_t * const conn,
     }
 
     // room not active in profanity
-    if (!muc_room_is_active(jid->barejid)) {
+    if (!muc_active(jid->barejid)) {
         log_error("Message received for inactive chat room: %s", jid->str);
         jid_destroy(jid);
         return 1;
@@ -429,22 +426,8 @@ _chat_handler(xmpp_conn_t * const conn, xmpp_stanza_t * const stanza,
     gchar *from = xmpp_stanza_get_attribute(stanza, STANZA_ATTR_FROM);
     Jid *jid = jid_create(from);
 
-    // handle ddg searches
-    if (strcmp(jid->barejid, "im@ddg.gg") == 0) {
-        xmpp_stanza_t *body = xmpp_stanza_get_child_by_name(stanza, STANZA_NAME_BODY);
-        if (body != NULL) {
-            char *message = xmpp_stanza_get_text(body);
-            if (message != NULL) {
-                handle_duck_result(message);
-                xmpp_free(ctx, message);
-            }
-        }
-
-        jid_destroy(jid);
-        return 1;
-
     // private message from chat room use full jid (room/nick)
-    } else if (muc_room_is_active(jid->barejid)) {
+    if (muc_active(jid->barejid)) {
         // determine if the notifications happened whilst offline
         GTimeVal tv_stamp;
         gboolean delayed = stanza_get_delay(stanza, &tv_stamp);
@@ -524,10 +507,10 @@ message_init_module(void)
 {
     message_send = _message_send;
     message_send_groupchat = _message_send_groupchat;
-    message_send_duck = _message_send_duck;
     message_send_invite = _message_send_invite;
     message_send_composing = _message_send_composing;
     message_send_paused = _message_send_paused;
     message_send_inactive = _message_send_inactive;
     message_send_gone = _message_send_gone;
+    message_send_groupchat_subject = _message_send_groupchat_subject;
 }

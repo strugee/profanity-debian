@@ -40,6 +40,7 @@
 #include "config/accounts.h"
 #include "contact.h"
 #include "jid.h"
+#include "tools/autocomplete.h"
 
 #define JABBER_PRIORITY_MIN -128
 #define JABBER_PRIORITY_MAX 127
@@ -86,6 +87,48 @@ typedef struct disco_identity_t {
     char *category;
 } DiscoIdentity;
 
+typedef enum {
+    FIELD_HIDDEN,
+    FIELD_TEXT_SINGLE,
+    FIELD_TEXT_PRIVATE,
+    FIELD_TEXT_MULTI,
+    FIELD_BOOLEAN,
+    FIELD_LIST_SINGLE,
+    FIELD_LIST_MULTI,
+    FIELD_JID_SINGLE,
+    FIELD_JID_MULTI,
+    FIELD_FIXED,
+    FIELD_UNKNOWN
+} form_field_type_t;
+
+typedef struct form_option_t {
+    char *label;
+    char *value;
+} FormOption;
+
+typedef struct form_field_t {
+    char *label;
+    char *type;
+    form_field_type_t type_t;
+    char *var;
+    char *description;
+    gboolean required;
+    GSList *values;
+    GSList *options;
+    Autocomplete value_ac;
+} FormField;
+
+typedef struct data_form_t {
+    char *type;
+    char *title;
+    char *instructions;
+    GSList *fields;
+    GHashTable *var_to_tag;
+    GHashTable *tag_to_var;
+    Autocomplete tag_ac;
+    gboolean modified;
+} DataForm;
+
 void jabber_init_module(void);
 void bookmark_init_module(void);
 void capabilities_init_module(void);
@@ -93,6 +136,7 @@ void iq_init_module(void);
 void message_init_module(void);
 void presence_init_module(void);
 void roster_init_module(void);
+void form_init_module(void);
 
 // connection functions
 void (*jabber_init)(const int disable_tls);
@@ -112,13 +156,14 @@ GList * (*jabber_get_available_resources)(void);
 // message functions
 void (*message_send)(const char * const msg, const char * const recipient);
 void (*message_send_groupchat)(const char * const msg, const char * const recipient);
+void (*message_send_groupchat_subject)(const char * const room, const char * const subject);
+
 void (*message_send_inactive)(const char * const recipient);
 void (*message_send_composing)(const char * const recipient);
 void (*message_send_paused)(const char * const recipient);
 void (*message_send_gone)(const char * const recipient);
 void (*message_send_invite)(const char * const room, const char * const contact,
     const char * const reason);
-void (*message_send_duck)(const char * const query);
 
 // presence functions
 void (*presence_subscription)(const char * const jid, const jabber_subscr_t action);
@@ -139,10 +184,27 @@ void (*iq_room_list_request)(gchar *conferencejid);
 void (*iq_disco_info_request)(gchar *jid);
 void (*iq_disco_items_request)(gchar *jid);
 void (*iq_set_autoping)(int seconds);
+void (*iq_confirm_instant_room)(const char * const room_jid);
+void (*iq_destroy_room)(const char * const room_jid);
+void (*iq_request_room_config_form)(const char * const room_jid);
+void (*iq_submit_room_config)(const char * const room, DataForm *form);
+void (*iq_room_config_cancel)(const char * const room_jid);
+void (*iq_send_ping)(const char * const target);
+void (*iq_send_caps_request)(const char * const to, const char * const id,
+    const char * const node, const char * const ver);
+void (*iq_room_info_request)(gchar *room);
+void (*iq_room_affiliation_list)(const char * const room, char *affiliation);
+void (*iq_room_affiliation_set)(const char * const room, const char * const jid, char *affiliation,
+    const char * const reason);
+void (*iq_room_kick_occupant)(const char * const room, const char * const nick, const char * const reason);
+void (*iq_room_role_set)(const char * const room, const char * const nick, char *role,
+    const char * const reason);
+void (*iq_room_role_list)(const char * const room, char *role);
 
 // caps functions
-Capabilities* (*caps_get)(const char * const caps_str);
+Capabilities* (*caps_lookup)(const char * const jid);
 void (*caps_close)(void);
+void (*caps_destroy)(Capabilities *caps);
 
 gboolean (*bookmark_add)(const char *jid, const char *nick, const char *password, const char *autojoin_str);
 gboolean (*bookmark_update)(const char *jid, const char *nick, const char *password, const char *autojoin_str);
@@ -157,5 +219,23 @@ void (*roster_send_add_to_group)(const char * const group, PContact contact);
 void (*roster_send_remove_from_group)(const char * const group, PContact contact);
 void (*roster_send_add_new)(const char * const barejid, const char * const name);
 void (*roster_send_remove)(const char * const barejid);
+
+void (*form_destroy)(DataForm *form);
+char * (*form_get_form_type_field)(DataForm *form);
+void (*form_set_value)(DataForm *form, const char * const tag, char *value);
+gboolean (*form_add_unique_value)(DataForm *form, const char * const tag, char *value);
+void (*form_add_value)(DataForm *form, const char * const tag, char *value);
+gboolean (*form_remove_value)(DataForm *form, const char * const tag, char *value);
+gboolean (*form_remove_text_multi_value)(DataForm *form, const char * const tag, int index);
+gboolean (*form_tag_exists)(DataForm *form, const char * const tag);
+form_field_type_t (*form_get_field_type)(DataForm *form, const char * const tag);
+gboolean (*form_field_contains_option)(DataForm *form, const char * const tag, char *value);
+int (*form_get_value_count)(DataForm *form, const char * const tag);
+FormField* (*form_get_field_by_tag)(DataForm *form, const char * const tag);
+Autocomplete (*form_get_value_ac)(DataForm *form, const char * const tag);
+void (*form_reset_autocompleters)(DataForm *form);
+
+GSList * (*form_get_non_form_type_fields_sorted)(DataForm *form);
+GSList * (*form_get_field_values_sorted)(FormField *field);
 
 #endif

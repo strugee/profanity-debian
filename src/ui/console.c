@@ -32,6 +32,7 @@
  *
  */
 
+
 #include <string.h>
 #include <stdlib.h>
 
@@ -67,10 +68,6 @@ _cons_show_time(void)
 {
     ProfWin *console = wins_get_console();
     win_save_print(console, '-', NULL, NO_EOL, 0, "", "");
-
-    if (wins_is_current(console)) {
-        win_update_virtual(console);
-    }
 }
 
 static void
@@ -78,10 +75,6 @@ _cons_show_word(const char * const word)
 {
     ProfWin *console = wins_get_console();
     win_save_print(console, '-', NULL, NO_DATE | NO_EOL, 0, "", word);
-
-    if (wins_is_current(console)) {
-        win_update_virtual(console);
-    }
 }
 
 static void
@@ -96,14 +89,6 @@ _cons_debug(const char * const msg, ...)
         win_save_println(console, fmt_msg->str);
         g_string_free(fmt_msg, TRUE);
         va_end(arg);
-
-        if (wins_is_current(console)) {
-            win_update_virtual(console);
-        }
-        cons_alert();
-
-        ui_current_page_off();
-        ui_update_screen();
     }
 }
 
@@ -118,10 +103,6 @@ _cons_show(const char * const msg, ...)
     win_save_println(console, fmt_msg->str);
     g_string_free(fmt_msg, TRUE);
     va_end(arg);
-
-    if (wins_is_current(console)) {
-        win_update_virtual(console);
-    }
 }
 
 static void
@@ -135,10 +116,6 @@ _cons_show_error(const char * const msg, ...)
     win_save_print(console, '-', NULL, 0, COLOUR_ERROR, "", fmt_msg->str);
     g_string_free(fmt_msg, TRUE);
     va_end(arg);
-
-    if (wins_is_current(console)) {
-        win_update_virtual(console);
-    }
 
     cons_alert();
 }
@@ -160,11 +137,6 @@ _cons_show_typing(const char * const barejid)
     }
 
     win_save_vprint(console, '-', NULL, 0, COLOUR_TYPING, "", "!! %s is typing a message...", display_usr);
-
-    if (wins_is_current(console)) {
-        win_update_virtual(console);
-    }
-
     cons_alert();
 }
 
@@ -178,10 +150,6 @@ _cons_show_incoming_message(const char * const short_from, const int win_index)
         ui_index = 0;
     }
     win_save_vprint(console, '-', NULL, 0, COLOUR_INCOMING, "", "<< incoming from %s (%d)", short_from, ui_index);
-
-    if (wins_is_current(console)) {
-        win_update_virtual(console);
-    }
 
     cons_alert();
 }
@@ -223,10 +191,6 @@ _cons_about(void)
 
     pnoutrefresh(console->win, 0, 0, 1, 0, rows-3, cols-1);
 
-    if (wins_is_current(console)) {
-        win_update_virtual(console);
-    }
-
     cons_alert();
 }
 
@@ -243,7 +207,6 @@ _cons_check_version(gboolean not_available_msg)
             if (release_is_new(latest_release)) {
                 win_save_vprint(console, '-', NULL, 0, 0, "", "A new version of Profanity is available: %s", latest_release);
                 win_save_println(console, "Check <http://www.profanity.im> for details.");
-                free(latest_release);
                 win_save_println(console, "");
             } else {
                 if (not_available_msg) {
@@ -252,12 +215,9 @@ _cons_check_version(gboolean not_available_msg)
                 }
             }
 
-            if (wins_is_current(console)) {
-                win_update_virtual(console);
-            }
-
             cons_alert();
         }
+        free(latest_release);
     }
 }
 
@@ -275,9 +235,6 @@ _cons_show_login_success(ProfAccount *account)
     win_save_vprint(console, '-', NULL, NO_DATE | NO_EOL, 0, "", " (priority %d)",
         accounts_get_priority_for_presence_type(account->name, presence));
     win_save_print(console, '-', NULL, NO_DATE, 0, "", ".");
-    if (wins_is_current(console)) {
-        win_update_virtual(console);
-    }
     cons_alert();
 }
 
@@ -296,16 +253,12 @@ _cons_show_wins(void)
     }
 
     cons_show("");
-    if (wins_is_current(console)) {
-        win_update_virtual(console);
-    }
     cons_alert();
 }
 
 static void
 _cons_show_room_invites(GSList *invites)
 {
-    ProfWin *console = wins_get_console();
     cons_show("");
     if (invites == NULL) {
         cons_show("No outstanding chat room invites.");
@@ -317,9 +270,6 @@ _cons_show_room_invites(GSList *invites)
         }
     }
 
-    if (wins_is_current(console)) {
-        win_update_virtual(console);
-    }
     cons_alert();
 }
 
@@ -329,80 +279,76 @@ _cons_show_info(PContact pcontact)
     ProfWin *console = wins_get_console();
     win_show_info(console, pcontact);
 
-    if (wins_is_current(console)) {
-        win_update_virtual(console);
-    }
     cons_alert();
 }
 
 static void
-_cons_show_caps(const char * const contact, Resource *resource)
+_cons_show_caps(const char * const fulljid, resource_presence_t presence)
 {
     ProfWin *console = wins_get_console();
     cons_show("");
-    const char *resource_presence = string_from_resource_presence(resource->presence);
 
-    int presence_colour = win_presence_colour(resource_presence);
-    win_save_vprint(console, '-', NULL, NO_EOL, presence_colour, "", "%s", contact);
-    win_save_print(console, '-', NULL, NO_DATE, 0, "", ":");
+    Capabilities *caps = caps_lookup(fulljid);
+    if (caps) {
+        const char *resource_presence = string_from_resource_presence(presence);
 
+        int presence_colour = win_presence_colour(resource_presence);
+        win_save_vprint(console, '-', NULL, NO_EOL, presence_colour, "", "%s", fulljid);
+        win_save_print(console, '-', NULL, NO_DATE, 0, "", ":");
 
-    if (resource->caps_str != NULL) {
-        Capabilities *caps = caps_get(resource->caps_str);
-        if (caps != NULL) {
-            // show identity
-            if ((caps->category != NULL) || (caps->type != NULL) || (caps->name != NULL)) {
-                win_save_print(console, '-', NULL, NO_EOL, 0, "", "Identity: ");
-                if (caps->name != NULL) {
-                    win_save_print(console, '-', NULL, NO_DATE | NO_EOL, 0, "", caps->name);
-                    if ((caps->category != NULL) || (caps->type != NULL)) {
-                        win_save_print(console, '-', NULL, NO_DATE | NO_EOL, 0, "", " ");
-                    }
+        // show identity
+        if ((caps->category != NULL) || (caps->type != NULL) || (caps->name != NULL)) {
+            win_save_print(console, '-', NULL, NO_EOL, 0, "", "Identity: ");
+            if (caps->name != NULL) {
+                win_save_print(console, '-', NULL, NO_DATE | NO_EOL, 0, "", caps->name);
+                if ((caps->category != NULL) || (caps->type != NULL)) {
+                    win_save_print(console, '-', NULL, NO_DATE | NO_EOL, 0, "", " ");
                 }
-                if (caps->type != NULL) {
-                    win_save_print(console, '-', NULL, NO_DATE | NO_EOL, 0, "", caps->type);
-                    if (caps->category != NULL) {
-                        win_save_print(console, '-', NULL, NO_DATE | NO_EOL, 0, "", " ");
-                    }
-                }
+            }
+            if (caps->type != NULL) {
+                win_save_print(console, '-', NULL, NO_DATE | NO_EOL, 0, "", caps->type);
                 if (caps->category != NULL) {
-                    win_save_print(console, '-', NULL, NO_DATE | NO_EOL, 0, "", caps->category);
+                    win_save_print(console, '-', NULL, NO_DATE | NO_EOL, 0, "", " ");
                 }
-                win_save_newline(console);
             }
-            if (caps->software != NULL) {
-                win_save_vprint(console, '-', NULL, NO_EOL, 0, "", "Software: %s", caps->software);
+            if (caps->category != NULL) {
+                win_save_print(console, '-', NULL, NO_DATE | NO_EOL, 0, "", caps->category);
             }
-            if (caps->software_version != NULL) {
-                win_save_vprint(console, '-', NULL, NO_DATE | NO_EOL, 0, "", ", %s", caps->software_version);
-            }
-            if ((caps->software != NULL) || (caps->software_version != NULL)) {
-                win_save_newline(console);
-            }
-            if (caps->os != NULL) {
-                win_save_vprint(console, '-', NULL, NO_EOL, 0, "", "OS: %s", caps->os);
-            }
-            if (caps->os_version != NULL) {
-                win_save_vprint(console, '-', NULL, NO_DATE | NO_EOL, 0, "", ", %s", caps->os_version);
-            }
-            if ((caps->os != NULL) || (caps->os_version != NULL)) {
-                win_save_newline(console);
-            }
+            win_save_newline(console);
+        }
+        if (caps->software != NULL) {
+            win_save_vprint(console, '-', NULL, NO_EOL, 0, "", "Software: %s", caps->software);
+        }
+        if (caps->software_version != NULL) {
+            win_save_vprint(console, '-', NULL, NO_DATE | NO_EOL, 0, "", ", %s", caps->software_version);
+        }
+        if ((caps->software != NULL) || (caps->software_version != NULL)) {
+            win_save_newline(console);
+        }
+        if (caps->os != NULL) {
+            win_save_vprint(console, '-', NULL, NO_EOL, 0, "", "OS: %s", caps->os);
+        }
+        if (caps->os_version != NULL) {
+            win_save_vprint(console, '-', NULL, NO_DATE | NO_EOL, 0, "", ", %s", caps->os_version);
+        }
+        if ((caps->os != NULL) || (caps->os_version != NULL)) {
+            win_save_newline(console);
+        }
 
-            if (caps->features != NULL) {
-                win_save_println(console, "Features:");
-                GSList *feature = caps->features;
-                while (feature != NULL) {
-                    win_save_vprint(console, '-', NULL, 0, 0, "", " %s", feature->data);
-                    feature = g_slist_next(feature);
-                }
+        if (caps->features != NULL) {
+            win_save_println(console, "Features:");
+            GSList *feature = caps->features;
+            while (feature != NULL) {
+                win_save_vprint(console, '-', NULL, 0, 0, "", " %s", feature->data);
+                feature = g_slist_next(feature);
             }
         }
+        caps_destroy(caps);
+
+    } else {
+        cons_show("No capabilities found for %s", fulljid);
     }
 
-    if (wins_is_current(console)) {
-        win_update_virtual(console);
-    }
     cons_alert();
 }
 
@@ -427,9 +373,6 @@ _cons_show_software_version(const char * const jid, const char * const  presence
         cons_show("OS      : %s", os);
     }
 
-    if (wins_is_current(console)) {
-        win_update_virtual(console);
-    }
     cons_alert();
 }
 
@@ -492,9 +435,6 @@ _cons_show_room_list(GSList *rooms, const char * const conference_node)
         cons_show("No chat rooms at %s", conference_node);
     }
 
-    if (wins_is_current(console)) {
-        win_update_virtual(console);
-    }
     cons_alert();
 }
 
@@ -515,7 +455,7 @@ _cons_show_bookmarks(const GList *list)
 
             int presence_colour = 0;
 
-            if (muc_room_is_active(item->jid)) {
+            if (muc_active(item->jid)) {
                 presence_colour = COLOUR_ONLINE;
             }
             win_save_vprint(console, '-', NULL, NO_EOL, presence_colour, "", "  %s", item->jid);
@@ -528,7 +468,7 @@ _cons_show_bookmarks(const GList *list)
             if (item->password != NULL) {
                 win_save_print(console, '-', NULL, NO_DATE | NO_EOL, presence_colour, "", " (private)");
             }
-            if (muc_room_is_active(item->jid)) {
+            if (muc_active(item->jid)) {
                 ProfWin *roomwin = wins_get_by_recipient(item->jid);
                 if (roomwin != NULL) {
                     int num = wins_get_num(roomwin);
@@ -538,10 +478,6 @@ _cons_show_bookmarks(const GList *list)
             win_save_newline(console);
             list = g_list_next(list);
         }
-
-        if (wins_is_current(console)) {
-            win_update_virtual(console);
-        }
     }
     cons_alert();
 }
@@ -549,7 +485,6 @@ _cons_show_bookmarks(const GList *list)
 static void
 _cons_show_disco_info(const char *jid, GSList *identities, GSList *features)
 {
-    ProfWin *console = wins_get_console();
     if (((identities != NULL) && (g_slist_length(identities) > 0)) ||
         ((features != NULL) && (g_slist_length(features) > 0))) {
         cons_show("");
@@ -585,9 +520,6 @@ _cons_show_disco_info(const char *jid, GSList *identities, GSList *features)
             features = g_slist_next(features);
         }
 
-        if (wins_is_current(console)) {
-            win_update_virtual(console);
-        }
         cons_alert();
     }
 }
@@ -613,9 +545,6 @@ _cons_show_disco_items(GSList *items, const char * const jid)
         cons_show("No service discovery items for %s", jid);
     }
 
-    if (wins_is_current(console)) {
-        win_update_virtual(console);
-    }
     cons_alert();
 }
 
@@ -631,9 +560,6 @@ _cons_show_status(const char * const barejid)
         cons_show("No such contact \"%s\" in roster.", barejid);
     }
 
-    if (wins_is_current(console)) {
-        win_update_virtual(console);
-    }
     cons_alert();
 }
 
@@ -641,7 +567,6 @@ static void
 _cons_show_room_invite(const char * const invitor, const char * const room,
     const char * const reason)
 {
-    ProfWin *console = wins_get_console();
     char *display_from = NULL;
     PContact contact = roster_get_contact(invitor);
     if (contact != NULL) {
@@ -671,9 +596,6 @@ _cons_show_room_invite(const char * const invitor, const char * const room,
 
     free(display_from);
 
-    if (wins_is_current(console)) {
-        win_update_virtual(console);
-    }
     cons_alert();
 }
 
@@ -701,9 +623,6 @@ _cons_show_account_list(gchar **accounts)
         cons_show("");
     }
 
-    if (wins_is_current(console)) {
-        win_update_virtual(console);
-    }
     cons_alert();
 }
 
@@ -818,58 +737,56 @@ _cons_show_account(ProfAccount *account)
                 win_save_vprint(console, '-', NULL, NO_DATE | NO_EOL, presence_colour, "", ", \"%s\"", resource->status);
             }
             win_save_vprint(console, '-', NULL, NO_DATE, 0, "", "");
+            Jid *jidp = jid_create_from_bare_and_resource(account->jid, resource->name);
+            Capabilities *caps = caps_lookup(jidp->fulljid);
+            jid_destroy(jidp);
 
-            if (resource->caps_str != NULL) {
-                Capabilities *caps = caps_get(resource->caps_str);
-                if (caps != NULL) {
-                    // show identity
-                    if ((caps->category != NULL) || (caps->type != NULL) || (caps->name != NULL)) {
-                        win_save_print(console, '-', NULL, NO_EOL, 0, "", "    Identity: ");
-                        if (caps->name != NULL) {
-                            win_save_print(console, '-', NULL, NO_DATE | NO_EOL, 0, "", caps->name);
-                            if ((caps->category != NULL) || (caps->type != NULL)) {
-                                win_save_print(console, '-', NULL, NO_DATE | NO_EOL, 0, "", " ");
-                            }
+            if (caps != NULL) {
+                // show identity
+                if ((caps->category != NULL) || (caps->type != NULL) || (caps->name != NULL)) {
+                    win_save_print(console, '-', NULL, NO_EOL, 0, "", "    Identity: ");
+                    if (caps->name != NULL) {
+                        win_save_print(console, '-', NULL, NO_DATE | NO_EOL, 0, "", caps->name);
+                        if ((caps->category != NULL) || (caps->type != NULL)) {
+                            win_save_print(console, '-', NULL, NO_DATE | NO_EOL, 0, "", " ");
                         }
-                        if (caps->type != NULL) {
-                            win_save_print(console, '-', NULL, NO_DATE | NO_EOL, 0, "", caps->type);
-                            if (caps->category != NULL) {
-                                win_save_print(console, '-', NULL, NO_DATE | NO_EOL, 0, "", " ");
-                            }
-                        }
+                    }
+                    if (caps->type != NULL) {
+                        win_save_print(console, '-', NULL, NO_DATE | NO_EOL, 0, "", caps->type);
                         if (caps->category != NULL) {
-                            win_save_print(console, '-', NULL, NO_DATE | NO_EOL, 0, "", caps->category);
+                            win_save_print(console, '-', NULL, NO_DATE | NO_EOL, 0, "", " ");
                         }
-                        win_save_newline(console);
                     }
-                    if (caps->software != NULL) {
-                        win_save_vprint(console, '-', NULL, NO_EOL, 0, "", "    Software: %s", caps->software);
+                    if (caps->category != NULL) {
+                        win_save_print(console, '-', NULL, NO_DATE | NO_EOL, 0, "", caps->category);
                     }
-                    if (caps->software_version != NULL) {
-                        win_save_vprint(console, '-', NULL, NO_DATE | NO_EOL, 0, "", ", %s", caps->software_version);
-                    }
-                    if ((caps->software != NULL) || (caps->software_version != NULL)) {
-                        win_save_newline(console);
-                    }
-                    if (caps->os != NULL) {
-                        win_save_vprint(console, '-', NULL, NO_EOL, 0, "", "    OS: %s", caps->os);
-                    }
-                    if (caps->os_version != NULL) {
-                        win_save_vprint(console, '-', NULL, NO_DATE | NO_EOL, 0, "", ", %s", caps->os_version);
-                    }
-                    if ((caps->os != NULL) || (caps->os_version != NULL)) {
-                        win_save_newline(console);
-                    }
+                    win_save_newline(console);
                 }
+                if (caps->software != NULL) {
+                    win_save_vprint(console, '-', NULL, NO_EOL, 0, "", "    Software: %s", caps->software);
+                }
+                if (caps->software_version != NULL) {
+                    win_save_vprint(console, '-', NULL, NO_DATE | NO_EOL, 0, "", ", %s", caps->software_version);
+                }
+                if ((caps->software != NULL) || (caps->software_version != NULL)) {
+                    win_save_newline(console);
+                }
+                if (caps->os != NULL) {
+                    win_save_vprint(console, '-', NULL, NO_EOL, 0, "", "    OS: %s", caps->os);
+                }
+                if (caps->os_version != NULL) {
+                    win_save_vprint(console, '-', NULL, NO_DATE | NO_EOL, 0, "", ", %s", caps->os_version);
+                }
+                if ((caps->os != NULL) || (caps->os_version != NULL)) {
+                    win_save_newline(console);
+                }
+                caps_destroy(caps);
             }
 
             ordered_resources = g_list_next(ordered_resources);
         }
     }
 
-    if (wins_is_current(console)) {
-        win_update_virtual(console);
-    }
     cons_alert();
 }
 
@@ -906,6 +823,15 @@ _cons_theme_setting(void)
 }
 
 static void
+_cons_privileges_setting(void)
+{
+    if (prefs_get_boolean(PREF_MUC_PRIVILEGES))
+        cons_show("MUC privileges (/privileges)  : ON");
+    else
+        cons_show("MUC privileges (/privileges)  : OFF");
+}
+
+static void
 _cons_beep_setting(void)
 {
     if (prefs_get_boolean(PREF_BEEP))
@@ -930,6 +856,15 @@ _cons_splash_setting(void)
         cons_show("Splash screen (/splash)       : ON");
     else
         cons_show("Splash screen (/splash)       : OFF");
+}
+
+static void
+_cons_occupants_setting(void)
+{
+    if (prefs_get_boolean(PREF_OCCUPANTS))
+        cons_show("Occupants (/occupants)        : show");
+    else
+        cons_show("Occupants (/occupants)        : hide");
 }
 
 static void
@@ -991,7 +926,6 @@ _cons_titlebar_setting(void)
 static void
 _cons_show_ui_prefs(void)
 {
-    ProfWin *console = wins_get_console();
     cons_show("UI preferences:");
     cons_show("");
     cons_theme_setting();
@@ -1001,93 +935,103 @@ _cons_show_ui_prefs(void)
     cons_vercheck_setting();
     cons_mouse_setting();
     cons_statuses_setting();
+    cons_occupants_setting();
+    cons_privileges_setting();
     cons_titlebar_setting();
 
-    if (wins_is_current(console)) {
-        win_update_virtual(console);
-    }
     cons_alert();
 }
 
 static void
 _cons_notify_setting(void)
 {
-    if (prefs_get_boolean(PREF_NOTIFY_MESSAGE))
-        cons_show("Messages (/notify message)          : ON");
-    else
-        cons_show("Messages (/notify message)          : OFF");
+    gboolean notify_enabled = FALSE;
+#ifdef HAVE_OSXNOTIFY
+    notify_enabled = TRUE;
+#endif
+#ifdef HAVE_LIBNOTIFY
+    notify_enabled = TRUE;
+#endif
+#ifdef PLATFORM_CYGWIN
+    notify_enabled = TRUE;
+#endif
 
-    if (prefs_get_boolean(PREF_NOTIFY_MESSAGE_CURRENT))
-        cons_show("Messages current (/notify message)  : ON");
-    else
-        cons_show("Messages current (/notify message)  : OFF");
+    if (notify_enabled) {
+        if (prefs_get_boolean(PREF_NOTIFY_MESSAGE))
+            cons_show("Messages (/notify message)          : ON");
+        else
+            cons_show("Messages (/notify message)          : OFF");
 
-    if (prefs_get_boolean(PREF_NOTIFY_MESSAGE_TEXT))
-        cons_show("Messages text (/notify message)     : ON");
-    else
-        cons_show("Messages text (/notify message)     : OFF");
+        if (prefs_get_boolean(PREF_NOTIFY_MESSAGE_CURRENT))
+            cons_show("Messages current (/notify message)  : ON");
+        else
+            cons_show("Messages current (/notify message)  : OFF");
 
-    char *room_setting = prefs_get_string(PREF_NOTIFY_ROOM);
-    if (g_strcmp0(room_setting, "on") == 0) {
-    cons_show    ("Room messages (/notify room)        : ON");
-    } else if (g_strcmp0(room_setting, "off") == 0) {
-    cons_show    ("Room messages (/notify room)        : OFF");
+        if (prefs_get_boolean(PREF_NOTIFY_MESSAGE_TEXT))
+            cons_show("Messages text (/notify message)     : ON");
+        else
+            cons_show("Messages text (/notify message)     : OFF");
+
+        char *room_setting = prefs_get_string(PREF_NOTIFY_ROOM);
+        if (g_strcmp0(room_setting, "on") == 0) {
+        cons_show    ("Room messages (/notify room)        : ON");
+        } else if (g_strcmp0(room_setting, "off") == 0) {
+        cons_show    ("Room messages (/notify room)        : OFF");
+        } else {
+        cons_show    ("Room messages (/notify room)        : %s", room_setting);
+        }
+        prefs_free_string(room_setting);
+
+        if (prefs_get_boolean(PREF_NOTIFY_ROOM_CURRENT))
+            cons_show("Room current (/notify room)         : ON");
+        else
+            cons_show("Room current (/notify room)         : OFF");
+
+        if (prefs_get_boolean(PREF_NOTIFY_ROOM_TEXT))
+            cons_show("Room text (/notify room)            : ON");
+        else
+            cons_show("Room text (/notify room)            : OFF");
+
+        if (prefs_get_boolean(PREF_NOTIFY_TYPING))
+            cons_show("Composing (/notify typing)          : ON");
+        else
+            cons_show("Composing (/notify typing)          : OFF");
+
+        if (prefs_get_boolean(PREF_NOTIFY_TYPING_CURRENT))
+            cons_show("Composing current (/notify typing)  : ON");
+        else
+            cons_show("Composing current (/notify typing)  : OFF");
+
+        if (prefs_get_boolean(PREF_NOTIFY_INVITE))
+            cons_show("Room invites (/notify invite)       : ON");
+        else
+            cons_show("Room invites (/notify invite)       : OFF");
+
+        if (prefs_get_boolean(PREF_NOTIFY_SUB))
+            cons_show("Subscription requests (/notify sub) : ON");
+        else
+            cons_show("Subscription requests (/notify sub) : OFF");
+
+        gint remind_period = prefs_get_notify_remind();
+        if (remind_period == 0) {
+            cons_show("Reminder period (/notify remind)    : OFF");
+        } else if (remind_period == 1) {
+            cons_show("Reminder period (/notify remind)    : 1 second");
+        } else {
+            cons_show("Reminder period (/notify remind)    : %d seconds", remind_period);
+        }
     } else {
-    cons_show    ("Room messages (/notify room)        : %s", room_setting);
-    }
-    prefs_free_string(room_setting);
-
-    if (prefs_get_boolean(PREF_NOTIFY_ROOM_CURRENT))
-        cons_show("Room current (/notify room)         : ON");
-    else
-        cons_show("Room current (/notify room)         : OFF");
-
-    if (prefs_get_boolean(PREF_NOTIFY_ROOM_TEXT))
-        cons_show("Room text (/notify room)            : ON");
-    else
-        cons_show("Room text (/notify room)            : OFF");
-
-    if (prefs_get_boolean(PREF_NOTIFY_TYPING))
-        cons_show("Composing (/notify typing)          : ON");
-    else
-        cons_show("Composing (/notify typing)          : OFF");
-
-    if (prefs_get_boolean(PREF_NOTIFY_TYPING_CURRENT))
-        cons_show("Composing current (/notify typing)  : ON");
-    else
-        cons_show("Composing current (/notify typing)  : OFF");
-
-    if (prefs_get_boolean(PREF_NOTIFY_INVITE))
-        cons_show("Room invites (/notify invite)       : ON");
-    else
-        cons_show("Room invites (/notify invite)       : OFF");
-
-    if (prefs_get_boolean(PREF_NOTIFY_SUB))
-        cons_show("Subscription requests (/notify sub) : ON");
-    else
-        cons_show("Subscription requests (/notify sub) : OFF");
-
-    gint remind_period = prefs_get_notify_remind();
-    if (remind_period == 0) {
-        cons_show("Reminder period (/notify remind)    : OFF");
-    } else if (remind_period == 1) {
-        cons_show("Reminder period (/notify remind)    : 1 second");
-    } else {
-        cons_show("Reminder period (/notify remind)    : %d seconds", remind_period);
+        cons_show("Notification support was not included in this build.");
     }
 }
 
 static void
 _cons_show_desktop_prefs(void)
 {
-    ProfWin *console = wins_get_console();
     cons_show("Desktop notification preferences:");
     cons_show("");
     cons_notify_setting();
 
-    if (wins_is_current(console)) {
-        win_update_virtual(console);
-    }
     cons_alert();
 }
 
@@ -1143,7 +1087,6 @@ _cons_history_setting(void)
 static void
 _cons_show_chat_prefs(void)
 {
-    ProfWin *console = wins_get_console();
     cons_show("Chat preferences:");
     cons_show("");
     cons_states_setting();
@@ -1152,9 +1095,6 @@ _cons_show_chat_prefs(void)
     cons_gone_setting();
     cons_history_setting();
 
-    if (wins_is_current(console)) {
-        win_update_virtual(console);
-    }
     cons_alert();
 }
 
@@ -1196,16 +1136,12 @@ _cons_grlog_setting(void)
 static void
 _cons_show_log_prefs(void)
 {
-    ProfWin *console = wins_get_console();
     cons_show("Logging preferences:");
     cons_show("");
     cons_log_setting();
     cons_chlog_setting();
     cons_grlog_setting();
 
-    if (wins_is_current(console)) {
-        win_update_virtual(console);
-    }
     cons_alert();
 }
 
@@ -1241,14 +1177,10 @@ _cons_autoaway_setting(void)
 static void
 _cons_show_presence_prefs(void)
 {
-    ProfWin *console = wins_get_console();
     cons_show("Presence preferences:");
     cons_show("");
     cons_autoaway_setting();
 
-    if (wins_is_current(console)) {
-        win_update_virtual(console);
-    }
     cons_alert();
 }
 
@@ -1288,23 +1220,18 @@ _cons_priority_setting(void)
 static void
 _cons_show_connection_prefs(void)
 {
-    ProfWin *console = wins_get_console();
     cons_show("Connection preferences:");
     cons_show("");
     cons_reconnect_setting();
     cons_autoping_setting();
     cons_autoconnect_setting();
 
-    if (wins_is_current(console)) {
-        win_update_virtual(console);
-    }
     cons_alert();
 }
 
 static void
 _cons_show_otr_prefs(void)
 {
-    ProfWin *console = wins_get_console();
     cons_show("OTR preferences:");
     cons_show("");
 
@@ -1328,16 +1255,12 @@ _cons_show_otr_prefs(void)
     }
     prefs_free_string(log_value);
 
-    if (wins_is_current(console)) {
-        win_update_virtual(console);
-    }
     cons_alert();
 }
 
 static void
 _cons_show_themes(GSList *themes)
 {
-    ProfWin *console = wins_get_console();
     cons_show("");
 
     if (themes == NULL) {
@@ -1350,16 +1273,12 @@ _cons_show_themes(GSList *themes)
         }
     }
 
-    if (wins_is_current(console)) {
-        win_update_virtual(console);
-    }
     cons_alert();
 }
 
 static void
 _cons_prefs(void)
 {
-    ProfWin *console = wins_get_console();
     cons_show("");
     cons_show_ui_prefs();
     cons_show("");
@@ -1376,16 +1295,12 @@ _cons_prefs(void)
     cons_show_otr_prefs();
     cons_show("");
 
-    if (wins_is_current(console)) {
-        win_update_virtual(console);
-    }
     cons_alert();
 }
 
 static void
 _cons_help(void)
 {
-    ProfWin *console = wins_get_console();
     cons_show("");
     cons_show("Choose a help option:");
     cons_show("");
@@ -1394,49 +1309,42 @@ _cons_help(void)
     cons_show("/help chatting   - List chat commands.");
     cons_show("/help groupchat  - List groupchat commands.");
     cons_show("/help presence   - List commands to change presence.");
-    cons_show("/help roster     - List commands for manipulating your roster.");
+    cons_show("/help contacts   - List commands for manipulating your roster.");
     cons_show("/help service    - List service discovery commands.");
     cons_show("/help settings   - List commands for changing settings.");
-    cons_show("/help other      - Other commands.");
     cons_show("/help navigation - How to navigate around Profanity.");
     cons_show("/help [command]  - Detailed help on a specific command.");
     cons_show("");
 
-    if (wins_is_current(console)) {
-        win_update_virtual(console);
-    }
     cons_alert();
 }
 
 static void
 _cons_navigation_help(void)
 {
-    ProfWin *console = wins_get_console();
     cons_show("");
     cons_show("Navigation:");
     cons_show("");
-    cons_show("Alt-1 (F1)               : This console window.");
-    cons_show("Alt-2..Alt-0 (F2..F10)   : Chat windows.");
-    cons_show("Alt-LEFT                 : Previous chat window");
-    cons_show("Alt-RIGHT                : Next chat window");
-    cons_show("UP, DOWN                 : Navigate input history.");
-    cons_show("LEFT, RIGHT, HOME, END   : Edit current input.");
-    cons_show("CTRL-LEFT, CTRL-RIGHT    : Jump word in input.");
-    cons_show("ESC                      : Clear current input.");
-    cons_show("TAB                      : Autocomplete.");
-    cons_show("PAGE UP, PAGE DOWN       : Page the main window.");
+    cons_show("Alt-1 (F1)                       : This console window.");
+    cons_show("Alt-2..Alt-0 (F2..F10)           : Chat windows.");
+    cons_show("Alt-LEFT                         : Previous chat window");
+    cons_show("Alt-RIGHT                        : Next chat window");
+    cons_show("UP, DOWN                         : Navigate input history.");
+    cons_show("LEFT, RIGHT, HOME, END           : Edit current input.");
+    cons_show("Ctrl-LEFT, Ctrl-RIGHT            : Jump word in input.");
+    cons_show("ESC                              : Clear current input.");
+    cons_show("TAB                              : Autocomplete.");
+    cons_show("PAGE UP, PAGE DOWN               : Page the main window.");
+    cons_show("Shift-UP, Shift-DOWN             : Page the occupants panel.");
+    cons_show("Ctrl-UP, Ctrl-DOWN               : Page the occupants panel.");
     cons_show("");
 
-    if (wins_is_current(console)) {
-        win_update_virtual(console);
-    }
     cons_alert();
 }
 
 static void
 _cons_show_roster_group(const char * const group, GSList *list)
 {
-    ProfWin *console = wins_get_console();
     cons_show("");
 
     if (list != NULL) {
@@ -1446,23 +1354,18 @@ _cons_show_roster_group(const char * const group, GSList *list)
     }
 
     _show_roster_contacts(list, FALSE);
-    if (wins_is_current(console)) {
-        win_update_virtual(console);
-    }
+
     cons_alert();
 }
 
 static void
 _cons_show_roster(GSList *list)
 {
-    ProfWin *console = wins_get_console();
     cons_show("");
-    cons_show("Roster:");
+    cons_show("Roster: jid (nick) - subscription - groups");
 
     _show_roster_contacts(list, TRUE);
-    if (wins_is_current(console)) {
-        win_update_virtual(console);
-    }
+
     cons_alert();
 }
 
@@ -1477,13 +1380,6 @@ _cons_show_contact_online(PContact contact, Resource *resource, GDateTime *last_
         "++", "online");
 
     free(display_str);
-
-    if (wins_is_current(console)) {
-        ui_current_page_off();
-    }
-    if (wins_is_current(console)) {
-        win_update_virtual(console);
-    }
 }
 
 static void
@@ -1495,13 +1391,6 @@ _cons_show_contact_offline(PContact contact, char *resource, char *status)
     win_show_status_string(console, display_str, "offline", status, NULL, "--",
         "offline");
     free(display_str);
-
-    if (wins_is_current(console)) {
-        ui_current_page_off();
-    }
-    if (wins_is_current(console)) {
-        win_update_virtual(console);
-    }
 }
 
 static void
@@ -1517,10 +1406,6 @@ _cons_show_contacts(GSList *list)
             win_show_contact(console, contact);
         }
         curr = g_slist_next(curr);
-    }
-
-    if (wins_is_current(console)) {
-        win_update_virtual(console);
     }
     cons_alert();
 }
@@ -1582,11 +1467,11 @@ _show_roster_contacts(GSList *list, gboolean show_groups)
         } else {
             presence_colour = win_presence_colour("offline");
         }
-        win_save_vprint(console, '-', NULL, 0, presence_colour, "", title->str);
+        win_save_vprint(console, '-', NULL, NO_EOL, presence_colour, "", title->str);
 
         g_string_free(title, TRUE);
 
-        win_save_print(console, '-', NULL, NO_EOL, 0, "", "    Subscription : ");
+        win_save_print(console, '-', NULL, NO_DATE | NO_EOL, 0, "", " - ");
         GString *sub = g_string_new("");
         sub = g_string_append(sub, p_contact_subscription(contact));
         if (p_contact_pending_out(contact)) {
@@ -1600,14 +1485,19 @@ _show_roster_contacts(GSList *list, gboolean show_groups)
         } else {
             presence_colour = COLOUR_UNSUBSCRIBED;
         }
-        win_save_vprint(console, '-', NULL, NO_DATE, presence_colour, "", "%s", sub->str);
+
+        if (show_groups) {
+            win_save_vprint(console, '-', NULL, NO_DATE | NO_EOL, presence_colour, "", "%s", sub->str);
+        } else {
+            win_save_vprint(console, '-', NULL, NO_DATE, presence_colour, "", "%s", sub->str);
+        }
 
         g_string_free(sub, TRUE);
 
         if (show_groups) {
             GSList *groups = p_contact_groups(contact);
             if (groups != NULL) {
-                GString *groups_str = g_string_new("    Groups : ");
+                GString *groups_str = g_string_new(" - ");
                 while (groups != NULL) {
                     g_string_append(groups_str, groups->data);
                     if (g_slist_next(groups) != NULL) {
@@ -1615,9 +1505,10 @@ _show_roster_contacts(GSList *list, gboolean show_groups)
                     }
                     groups = g_slist_next(groups);
                 }
-
-                cons_show(groups_str->str);
+                win_save_vprint(console, '-', NULL, NO_DATE, 0, "", "%s", groups_str->str);
                 g_string_free(groups_str, TRUE);
+            } else {
+                 win_save_print(console, '-', NULL, NO_DATE, 0, "", " ");
             }
         }
 
@@ -1654,10 +1545,12 @@ console_init_module(void)
     cons_show_account_list = _cons_show_account_list;
     cons_show_account = _cons_show_account;
     cons_theme_setting = _cons_theme_setting;
+    cons_privileges_setting = _cons_privileges_setting;
     cons_beep_setting = _cons_beep_setting;
     cons_flash_setting = _cons_flash_setting;
     cons_splash_setting = _cons_splash_setting;
     cons_autoconnect_setting = _cons_autoconnect_setting;
+    cons_occupants_setting = _cons_occupants_setting;
     cons_vercheck_setting = _cons_vercheck_setting;
     cons_mouse_setting = _cons_mouse_setting;
     cons_statuses_setting = _cons_statuses_setting;

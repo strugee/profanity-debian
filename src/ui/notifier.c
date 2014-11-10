@@ -121,7 +121,7 @@ _notify_subscription(const char * const from)
 {
     GString *message = g_string_new("Subscription request: \n");
     g_string_append(message, from);
-    _notify(message->str, 10000, "Incomming message");
+    _notify(message->str, 10000, "Incoming message");
     g_string_free(message, TRUE);
 }
 
@@ -129,7 +129,7 @@ static void
 _notify_remind(void)
 {
     gint unread = ui_unread();
-    gint open = muc_invite_count();
+    gint open = muc_invites_count();
     gint subs = presence_sub_request_count();
 
     GString *text = g_string_new("");

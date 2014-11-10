@@ -81,7 +81,11 @@ wins_get_console(void)
 ProfWin *
 wins_get_current(void)
 {
-    return g_hash_table_lookup(windows, GINT_TO_POINTER(current));
+    if (windows != NULL) {
+        return g_hash_table_lookup(windows, GINT_TO_POINTER(current));
+    } else {
+        return NULL;
+    }
 }
 
 GList *
@@ -289,35 +293,53 @@ wins_resize_all(void)
     GList *values = g_hash_table_get_values(windows);
     GList *curr = values;
     while (curr != NULL) {
-      ProfWin *window = curr->data;
-      wresize(window->win, PAD_SIZE, cols);
-      win_redraw(window);
-      curr = g_list_next(curr);
+        ProfWin *window = curr->data;
+        if ((window->type == WIN_MUC) && (window->subwin)) {
+            wresize(window->win, PAD_SIZE, (cols/OCCUPANT_WIN_RATIO) * (OCCUPANT_WIN_RATIO-1));
+        } else {
+            wresize(window->win, PAD_SIZE, cols);
+        }
+        win_redraw(window);
+        curr = g_list_next(curr);
     }
     g_list_free(values);
 
     ProfWin *current_win = wins_get_current();
-
-    pnoutrefresh(current_win->win, current_win->y_pos, 0, 1, 0, rows-3, cols-1);
+    if ((current_win->type == WIN_MUC) && (current_win->subwin)) {
+        pnoutrefresh(current_win->win, current_win->y_pos, 0, 1, 0, rows-3, ((cols/OCCUPANT_WIN_RATIO) * (OCCUPANT_WIN_RATIO-1)) -1);
+        pnoutrefresh(current_win->subwin, current_win->sub_y_pos, 0, 1, (cols/OCCUPANT_WIN_RATIO) * (OCCUPANT_WIN_RATIO-1), rows-3, cols-1);
+    } else {
+        pnoutrefresh(current_win->win, current_win->y_pos, 0, 1, 0, rows-3, cols-1);
+    }
 }
 
-gboolean
-wins_duck_exists(void)
+void
+wins_hide_subwin(ProfWin *window)
 {
-    GList *values = g_hash_table_get_values(windows);
-    GList *curr = values;
+    int rows, cols;
+    getmaxyx(stdscr, rows, cols);
 
-    while (curr != NULL) {
-        ProfWin *window = curr->data;
-        if (window->type == WIN_DUCK) {
-            g_list_free(values);
-            return TRUE;
-        }
-        curr = g_list_next(curr);
+    win_hide_subwin(window);
+
+    ProfWin *current_win = wins_get_current();
+    if (current_win->type == WIN_MUC) {
+        pnoutrefresh(current_win->win, current_win->y_pos, 0, 1, 0, rows-3, cols-1);
     }
+}
 
-    g_list_free(values);
-    return FALSE;
+void
+wins_show_subwin(ProfWin *window)
+{
+    int rows, cols;
+    getmaxyx(stdscr, rows, cols);
+
+    win_show_subwin(window);
+
+    ProfWin *current_win = wins_get_current();
+    if (current_win->type == WIN_MUC) {
+        pnoutrefresh(current_win->win, current_win->y_pos, 0, 1, 0, rows-3, ((cols/OCCUPANT_WIN_RATIO) * (OCCUPANT_WIN_RATIO-1)) -1);
+        pnoutrefresh(current_win->subwin, current_win->sub_y_pos, 0, 1, (cols/OCCUPANT_WIN_RATIO) * (OCCUPANT_WIN_RATIO-1), rows-3, cols-1);
+    }
 }
 
 gboolean
@@ -385,7 +407,11 @@ wins_get_prune_recipients(void)
 
     while (curr != NULL) {
         ProfWin *window = curr->data;
-        if (window->unread == 0 && window->type != WIN_MUC && window->type != WIN_CONSOLE) {
+        if (window->unread == 0 &&
+                window->type != WIN_MUC &&
+                window->type != WIN_MUC_CONFIG &&
+                window->type != WIN_XML &&
+                window->type != WIN_CONSOLE) {
             result = g_slist_append(result, window->from);
         }
         curr = g_list_next(curr);
@@ -539,7 +565,7 @@ wins_create_summary(void)
         GString *chat_string;
         GString *priv_string;
         GString *muc_string;
-        GString *duck_string;
+        GString *muc_config_string;
         GString *xml_string;
 
         switch (window->type)
@@ -606,11 +632,14 @@ wins_create_summary(void)
 
                 break;
 
-            case WIN_DUCK:
-                duck_string = g_string_new("");
-                g_string_printf(duck_string, "%d: DuckDuckGo search", ui_index);
-                result = g_slist_append(result, strdup(duck_string->str));
-                g_string_free(duck_string, TRUE);
+            case WIN_MUC_CONFIG:
+                muc_config_string = g_string_new("");
+                g_string_printf(muc_config_string, "%d: %s", ui_index, window->from);
+                if ((window->form != NULL) && (window->form->modified)) {
+                    g_string_append(muc_config_string, " *");
+                }
+                result = g_slist_append(result, strdup(muc_config_string->str));
+                g_string_free(muc_config_string, TRUE);
 
                 break;
 

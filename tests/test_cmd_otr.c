@@ -179,7 +179,6 @@ void cmd_otr_log_redact_shows_warning_when_chlog_disabled(void **state)
 void cmd_otr_warn_shows_usage_when_no_args(void **state)
 {
     mock_cons_show();
-    stub_ui_current_update_virtual();
     CommandHelp *help = malloc(sizeof(CommandHelp));
     help->usage = "Some usage";
     gchar *args[] = { "warn", NULL };
@@ -195,7 +194,6 @@ void cmd_otr_warn_shows_usage_when_no_args(void **state)
 void cmd_otr_warn_shows_usage_when_invalid_arg(void **state)
 {
     mock_cons_show();
-    stub_ui_current_update_virtual();
     CommandHelp *help = malloc(sizeof(CommandHelp));
     help->usage = "Some usage";
     gchar *args[] = { "warn", "badarg", NULL };
@@ -211,7 +209,6 @@ void cmd_otr_warn_shows_usage_when_invalid_arg(void **state)
 void cmd_otr_warn_on_enables_unencrypted_warning(void **state)
 {
     mock_cons_show();
-    stub_ui_current_update_virtual();
     CommandHelp *help = malloc(sizeof(CommandHelp));
     gchar *args[] = { "warn", "on", NULL };
 
@@ -230,7 +227,6 @@ void cmd_otr_warn_on_enables_unencrypted_warning(void **state)
 void cmd_otr_warn_off_disables_unencrypted_warning(void **state)
 {
     mock_cons_show();
-    stub_ui_current_update_virtual();
     CommandHelp *help = malloc(sizeof(CommandHelp));
     gchar *args[] = { "warn", "off", NULL };
 
@@ -436,11 +432,6 @@ void cmd_otr_theirfp_shows_message_when_in_private(void **state)
     test_cmd_otr_theirfp_from_wintype(WIN_PRIVATE);
 }
 
-void cmd_otr_theirfp_shows_message_when_in_duck(void **state)
-{
-    test_cmd_otr_theirfp_from_wintype(WIN_DUCK);
-}
-
 void cmd_otr_theirfp_shows_message_when_non_otr_chat_window(void **state)
 {
     CommandHelp *help = malloc(sizeof(CommandHelp));
@@ -515,11 +506,6 @@ void cmd_otr_start_shows_message_when_in_muc(void **state)
 void cmd_otr_start_shows_message_when_in_private(void **state)
 {
     test_cmd_otr_start_from_wintype(WIN_PRIVATE);
-}
-
-void cmd_otr_start_shows_message_when_in_duck(void **state)
-{
-    test_cmd_otr_start_from_wintype(WIN_DUCK);
 }
 
 void cmd_otr_start_shows_message_when_already_started(void **state)

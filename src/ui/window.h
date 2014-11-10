@@ -44,7 +44,9 @@
 #endif
 
 #include "contact.h"
+#include "muc.h"
 #include "ui/buffer.h"
+#include "xmpp/xmpp.h"
 
 #define NO_ME   1
 #define NO_DATE 2
@@ -58,22 +60,25 @@ typedef enum {
     WIN_CONSOLE,
     WIN_CHAT,
     WIN_MUC,
+    WIN_MUC_CONFIG,
     WIN_PRIVATE,
-    WIN_DUCK,
     WIN_XML
 } win_type_t;
 
 typedef struct prof_win_t {
     char *from;
     WINDOW *win;
+    WINDOW *subwin;
     ProfBuff buffer;
     win_type_t type;
     gboolean is_otr;
     gboolean is_trusted;
     int y_pos;
+    int sub_y_pos;
     int paged;
     int unread;
     int history_shown;
+    DataForm *form;
 } ProfWin;
 
 ProfWin* win_create(const char * const title, int cols, win_type_t type);
@@ -82,6 +87,7 @@ void win_update_virtual(ProfWin *window);
 void win_move_to_end(ProfWin *window);
 int  win_presence_colour(const char * const presence);
 void win_show_contact(ProfWin *window, PContact contact);
+void win_show_occupant(ProfWin *window, Occupant *occupant);
 void win_show_status_string(ProfWin *window, const char * const from,
     const char * const show, const char * const status,
     GDateTime *last_activity, const char * const pre,
@@ -89,10 +95,13 @@ void win_show_status_string(ProfWin *window, const char * const from,
 void win_print_incoming_message(ProfWin *window, GTimeVal *tv_stamp,
     const char * const from, const char * const message);
 void win_show_info(ProfWin *window, PContact contact);
+void win_show_occupant_info(ProfWin *window, const char * const room, Occupant *occupant);
 void win_save_vprint(ProfWin *window, const char show_char, GTimeVal *tstamp, int flags, int attrs, const char * const from, const char * const message, ...);
 void win_save_print(ProfWin *window, const char show_char, GTimeVal *tstamp, int flags, int attrs, const char * const from, const char * const message);
 void win_save_println(ProfWin *window, const char * const message);
 void win_save_newline(ProfWin *window);
 void win_redraw(ProfWin *window);
+void win_hide_subwin(ProfWin *window);
+void win_show_subwin(ProfWin *window);
 
 #endif

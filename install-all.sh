@@ -74,7 +74,7 @@ install_lib_strophe()
     echo
     git clone git://github.com/strophe/libstrophe.git
     cd libstrophe
-    git checkout 0.8.6
+    git checkout 0.8.7
     ./bootstrap.sh
     ./configure --prefix=$1
     make
@@ -103,7 +103,7 @@ cyg_install_lib_strophe()
     echo
     git clone git://github.com/strophe/libstrophe.git
     cd libstrophe
-    git checkout 0.8.6
+    git checkout 0.8.7
     ./bootstrap.sh
     ./bootstrap.sh # second call seems to fix problem on cygwin
     ./configure --prefix=/usr

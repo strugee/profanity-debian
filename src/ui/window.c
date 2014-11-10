@@ -46,6 +46,8 @@
 #endif
 
 #include "config/theme.h"
+#include "config/preferences.h"
+#include "ui/ui.h"
 #include "ui/window.h"
 #include "xmpp/xmpp.h"
 
@@ -58,19 +60,60 @@ win_create(const char * const title, int cols, win_type_t type)
 {
     ProfWin *new_win = malloc(sizeof(struct prof_win_t));
     new_win->from = strdup(title);
-    new_win->win = newpad(PAD_SIZE, cols);
-    wbkgd(new_win->win, COLOUR_TEXT);
+
+    if (type == WIN_MUC && prefs_get_boolean(PREF_OCCUPANTS)) {
+        new_win->win = newpad(PAD_SIZE, (cols/OCCUPANT_WIN_RATIO) * (OCCUPANT_WIN_RATIO-1));
+        wbkgd(new_win->win, COLOUR_TEXT);
+
+        new_win->subwin = newpad(PAD_SIZE, OCCUPANT_WIN_WIDTH);
+        wbkgd(new_win->subwin, COLOUR_TEXT);
+    } else {
+        new_win->win = newpad(PAD_SIZE, (cols));
+        wbkgd(new_win->win, COLOUR_TEXT);
+
+        new_win->subwin = NULL;
+    }
+
     new_win->buffer = buffer_create();
     new_win->y_pos = 0;
+    new_win->sub_y_pos = 0;
     new_win->paged = 0;
     new_win->unread = 0;
     new_win->history_shown = 0;
     new_win->type = type;
     new_win->is_otr = FALSE;
     new_win->is_trusted = FALSE;
+    new_win->form = NULL;
     scrollok(new_win->win, TRUE);
 
     return new_win;
+}
+
+void
+win_hide_subwin(ProfWin *window)
+{
+    if (window->subwin) {
+        delwin(window->subwin);
+    }
+    window->subwin = NULL;
+    window->sub_y_pos = 0;
+
+    int cols = getmaxx(stdscr);
+    wresize(window->win, PAD_SIZE, cols);
+    win_redraw(window);
+}
+
+void
+win_show_subwin(ProfWin *window)
+{
+    if (!window->subwin) {
+        window->subwin = newpad(PAD_SIZE, OCCUPANT_WIN_WIDTH);
+        wbkgd(window->subwin, COLOUR_TEXT);
+
+        int cols = getmaxx(stdscr);
+        wresize(window->win, PAD_SIZE, (cols/OCCUPANT_WIN_RATIO) * (OCCUPANT_WIN_RATIO-1));
+        win_redraw(window);
+    }
 }
 
 void
@@ -78,7 +121,11 @@ win_free(ProfWin* window)
 {
     buffer_free(window->buffer);
     delwin(window->win);
+    if (window->subwin) {
+        delwin(window->subwin);
+    }
     free(window->from);
+    form_destroy(window->form);
     free(window);
 }
 
@@ -87,7 +134,13 @@ win_update_virtual(ProfWin *window)
 {
     int rows, cols;
     getmaxyx(stdscr, rows, cols);
-    pnoutrefresh(window->win, window->y_pos, 0, 1, 0, rows-3, cols-1);
+
+    if ((window->type == WIN_MUC) && (window->subwin)) {
+        pnoutrefresh(window->win, window->y_pos, 0, 1, 0, rows-3, ((cols/OCCUPANT_WIN_RATIO) * (OCCUPANT_WIN_RATIO-1)) -1);
+        pnoutrefresh(window->subwin, window->sub_y_pos, 0, 1, (cols/OCCUPANT_WIN_RATIO) * (OCCUPANT_WIN_RATIO-1), rows-3, cols-1);
+    } else {
+        pnoutrefresh(window->win, window->y_pos, 0, 1, 0, rows-3, cols-1);
+    }
 }
 
 void
@@ -121,6 +174,23 @@ win_presence_colour(const char * const presence)
     } else {
         return COLOUR_OFFLINE;
     }
+}
+
+void
+win_show_occupant(ProfWin *window, Occupant *occupant)
+{
+    const char *presence_str = string_from_resource_presence(occupant->presence);
+
+    int presence_colour = win_presence_colour(presence_str);
+
+    win_save_print(window, '-', NULL, NO_EOL, presence_colour, "", occupant->nick);
+    win_save_vprint(window, '-', NULL, NO_DATE | NO_EOL, presence_colour, "", " is %s", presence_str);
+
+    if (occupant->status) {
+        win_save_vprint(window, '-', NULL, NO_DATE | NO_EOL, presence_colour, "", ", \"%s\"", occupant->status);
+    }
+
+    win_save_print(window, '-', NULL, NO_DATE, presence_colour, "", "");
 }
 
 void
@@ -165,6 +235,80 @@ win_show_contact(ProfWin *window, PContact contact)
     }
 
     win_save_print(window, '-', NULL, NO_DATE, presence_colour, "", "");
+}
+
+void
+win_show_occupant_info(ProfWin *window, const char * const room, Occupant *occupant)
+{
+    const char *presence_str = string_from_resource_presence(occupant->presence);
+    const char *occupant_affiliation = muc_occupant_affiliation_str(occupant);
+    const char *occupant_role = muc_occupant_role_str(occupant);
+
+    int presence_colour = win_presence_colour(presence_str);
+
+    win_save_print(window, '!', NULL, NO_EOL, presence_colour, "", occupant->nick);
+    win_save_vprint(window, '!', NULL, NO_DATE | NO_EOL, presence_colour, "", " is %s", presence_str);
+
+    if (occupant->status) {
+        win_save_vprint(window, '!', NULL, NO_DATE | NO_EOL, presence_colour, "", ", \"%s\"", occupant->status);
+    }
+
+    win_save_newline(window);
+
+    if (occupant->jid) {
+        win_save_vprint(window, '!', NULL, 0, 0, "", "  Jid: %s", occupant->jid);
+    }
+
+    win_save_vprint(window, '!', NULL, 0, 0, "", "  Affiliation: %s", occupant_affiliation);
+    win_save_vprint(window, '!', NULL, 0, 0, "", "  Role: %s", occupant_role);
+
+    Jid *jidp = jid_create_from_bare_and_resource(room, occupant->nick);
+    Capabilities *caps = caps_lookup(jidp->fulljid);
+    jid_destroy(jidp);
+
+    if (caps) {
+        // show identity
+        if ((caps->category != NULL) || (caps->type != NULL) || (caps->name != NULL)) {
+            win_save_print(window, '!', NULL, NO_EOL, 0, "", "  Identity: ");
+            if (caps->name != NULL) {
+                win_save_print(window, '!', NULL, NO_DATE | NO_EOL, 0, "", caps->name);
+                if ((caps->category != NULL) || (caps->type != NULL)) {
+                    win_save_print(window, '-', NULL, NO_DATE | NO_EOL, 0, "", " ");
+                }
+            }
+            if (caps->type != NULL) {
+                win_save_print(window, '!', NULL, NO_DATE | NO_EOL, 0, "", caps->type);
+                if (caps->category != NULL) {
+                    win_save_print(window, '!', NULL, NO_DATE | NO_EOL, 0, "", " ");
+                }
+            }
+            if (caps->category != NULL) {
+                win_save_print(window, '!', NULL, NO_DATE | NO_EOL, 0, "", caps->category);
+            }
+            win_save_newline(window);
+        }
+        if (caps->software != NULL) {
+            win_save_vprint(window, '!', NULL, NO_EOL, 0, "", "  Software: %s", caps->software);
+        }
+        if (caps->software_version != NULL) {
+            win_save_vprint(window, '!', NULL, NO_DATE | NO_EOL, 0, "", ", %s", caps->software_version);
+        }
+        if ((caps->software != NULL) || (caps->software_version != NULL)) {
+            win_save_newline(window);
+        }
+        if (caps->os != NULL) {
+            win_save_vprint(window, '!', NULL, NO_EOL, 0, "", "  OS: %s", caps->os);
+        }
+        if (caps->os_version != NULL) {
+            win_save_vprint(window, '!', NULL, NO_DATE | NO_EOL, 0, "", ", %s", caps->os_version);
+        }
+        if ((caps->os != NULL) || (caps->os_version != NULL)) {
+            win_save_newline(window);
+        }
+        caps_destroy(caps);
+    }
+
+    win_save_print(window, '-', NULL, 0, 0, "", "");
 }
 
 void
@@ -233,48 +377,50 @@ win_show_info(ProfWin *window, PContact contact)
         }
         win_save_newline(window);
 
-        if (resource->caps_str != NULL) {
-            Capabilities *caps = caps_get(resource->caps_str);
-            if (caps != NULL) {
-                // show identity
-                if ((caps->category != NULL) || (caps->type != NULL) || (caps->name != NULL)) {
-                    win_save_print(window, '-', NULL, NO_EOL, 0, "", "    Identity: ");
-                    if (caps->name != NULL) {
-                        win_save_print(window, '-', NULL, NO_DATE | NO_EOL, 0, "", caps->name);
-                        if ((caps->category != NULL) || (caps->type != NULL)) {
-                            win_save_print(window, '-', NULL, NO_DATE | NO_EOL, 0, "", " ");
-                        }
+        Jid *jidp = jid_create_from_bare_and_resource(barejid, resource->name);
+        Capabilities *caps = caps_lookup(jidp->fulljid);
+        jid_destroy(jidp);
+
+        if (caps) {
+            // show identity
+            if ((caps->category != NULL) || (caps->type != NULL) || (caps->name != NULL)) {
+                win_save_print(window, '-', NULL, NO_EOL, 0, "", "    Identity: ");
+                if (caps->name != NULL) {
+                    win_save_print(window, '-', NULL, NO_DATE | NO_EOL, 0, "", caps->name);
+                    if ((caps->category != NULL) || (caps->type != NULL)) {
+                        win_save_print(window, '-', NULL, NO_DATE | NO_EOL, 0, "", " ");
                     }
-                    if (caps->type != NULL) {
-                        win_save_print(window, '-', NULL, NO_DATE | NO_EOL, 0, "", caps->type);
-                        if (caps->category != NULL) {
-                            win_save_print(window, '-', NULL, NO_DATE | NO_EOL, 0, "", " ");
-                        }
-                    }
+                }
+                if (caps->type != NULL) {
+                    win_save_print(window, '-', NULL, NO_DATE | NO_EOL, 0, "", caps->type);
                     if (caps->category != NULL) {
-                        win_save_print(window, '-', NULL, NO_DATE | NO_EOL, 0, "", caps->category);
+                        win_save_print(window, '-', NULL, NO_DATE | NO_EOL, 0, "", " ");
                     }
-                    win_save_newline(window);
                 }
-                if (caps->software != NULL) {
-                    win_save_vprint(window, '-', NULL, NO_EOL, 0, "", "    Software: %s", caps->software);
+                if (caps->category != NULL) {
+                    win_save_print(window, '-', NULL, NO_DATE | NO_EOL, 0, "", caps->category);
                 }
-                if (caps->software_version != NULL) {
-                    win_save_vprint(window, '-', NULL, NO_DATE | NO_EOL, 0, "", ", %s", caps->software_version);
-                }
-                if ((caps->software != NULL) || (caps->software_version != NULL)) {
-                    win_save_newline(window);
-                }
-                if (caps->os != NULL) {
-                    win_save_vprint(window, '-', NULL, NO_EOL, 0, "", "    OS: %s", caps->os);
-                }
-                if (caps->os_version != NULL) {
-                    win_save_vprint(window, '-', NULL, NO_DATE | NO_EOL, 0, "", ", %s", caps->os_version);
-                }
-                if ((caps->os != NULL) || (caps->os_version != NULL)) {
-                    win_save_newline(window);
-                }
+                win_save_newline(window);
             }
+            if (caps->software != NULL) {
+                win_save_vprint(window, '-', NULL, NO_EOL, 0, "", "    Software: %s", caps->software);
+            }
+            if (caps->software_version != NULL) {
+                win_save_vprint(window, '-', NULL, NO_DATE | NO_EOL, 0, "", ", %s", caps->software_version);
+            }
+            if ((caps->software != NULL) || (caps->software_version != NULL)) {
+                win_save_newline(window);
+            }
+            if (caps->os != NULL) {
+                win_save_vprint(window, '-', NULL, NO_EOL, 0, "", "    OS: %s", caps->os);
+            }
+            if (caps->os_version != NULL) {
+                win_save_vprint(window, '-', NULL, NO_DATE | NO_EOL, 0, "", ", %s", caps->os_version);
+            }
+            if ((caps->os != NULL) || (caps->os_version != NULL)) {
+                win_save_newline(window);
+            }
+            caps_destroy(caps);
         }
 
         ordered_resources = g_list_next(ordered_resources);
@@ -308,6 +454,7 @@ win_show_status_string(ProfWin *window, const char * const from,
     if (last_activity != NULL) {
         GDateTime *now = g_date_time_new_now_local();
         GTimeSpan span = g_date_time_difference(now, last_activity);
+        g_date_time_unref(now);
 
         int hours = span / G_TIME_SPAN_HOUR;
         span = span - hours * G_TIME_SPAN_HOUR;
@@ -355,6 +502,7 @@ win_save_vprint(ProfWin *window, const char show_char, GTimeVal *tstamp,
     GString *fmt_msg = g_string_new(NULL);
     g_string_vprintf(fmt_msg, message, arg);
     win_save_print(window, show_char, tstamp, flags, attrs, from, fmt_msg->str);
+    g_string_free(fmt_msg, TRUE);
 }
 
 void

@@ -77,9 +77,7 @@ bookmark_request(void)
     id = strdup("bookmark_init_request");
 
     autojoin_count = 0;
-    if (bookmark_ac != NULL) {
-        autocomplete_free(bookmark_ac);
-    }
+    autocomplete_free(bookmark_ac);
     bookmark_ac = autocomplete_new();
     if (bookmark_list != NULL) {
         g_list_free_full(bookmark_list, _bookmark_item_destroy);
@@ -180,15 +178,15 @@ _bookmark_join(const char *jid)
         char *account_name = jabber_get_account_name();
         ProfAccount *account = accounts_get_account(account_name);
         Bookmark *item = found->data;
-        if (!muc_room_is_active(item->jid)) {
+        if (!muc_active(item->jid)) {
             char *nick = item->nick;
             if (nick == NULL) {
                 nick = account->muc_nick;
             }
             presence_join_room(item->jid, nick, item->password);
-            muc_join_room(item->jid, nick, item->password, FALSE);
+            muc_join(item->jid, nick, item->password, FALSE);
             account_free(account);
-        } else if (muc_get_roster_received(item->jid)) {
+        } else if (muc_roster_complete(item->jid)) {
             ui_room_join(item->jid, TRUE);
         }
         return TRUE;
@@ -331,7 +329,6 @@ _bookmark_handle_result(xmpp_conn_t * const conn,
         item->autojoin = autojoin_val;
         bookmark_list = g_list_append(bookmark_list, item);
 
-        /* TODO: preference whether autojoin */
         if (autojoin_val) {
             if (autojoin_count < BOOKMARK_AUTOJOIN_MAX) {
                 Jid *room_jid;
@@ -346,9 +343,9 @@ _bookmark_handle_result(xmpp_conn_t * const conn,
 
                 log_debug("Autojoin %s with nick=%s", jid, name);
                 room_jid = jid_create_from_bare_and_resource(jid, name);
-                if (!muc_room_is_active(room_jid->barejid)) {
+                if (!muc_active(room_jid->barejid)) {
                     presence_join_room(jid, name, password);
-                    muc_join_room(jid, name, password, TRUE);
+                    muc_join(jid, name, password, TRUE);
                 }
                 jid_destroy(room_jid);
                 account_free(account);
