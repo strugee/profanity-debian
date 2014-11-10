@@ -79,7 +79,6 @@ gboolean cmd_decline(gchar **args, struct cmd_help_t help);
 gboolean cmd_disco(gchar **args, struct cmd_help_t help);
 gboolean cmd_disconnect(gchar **args, struct cmd_help_t help);
 gboolean cmd_dnd(gchar **args, struct cmd_help_t help);
-gboolean cmd_duck(gchar **args, struct cmd_help_t help);
 gboolean cmd_flash(gchar **args, struct cmd_help_t help);
 gboolean cmd_gone(gchar **args, struct cmd_help_t help);
 gboolean cmd_grlog(gchar **args, struct cmd_help_t help);
@@ -104,6 +103,7 @@ gboolean cmd_prefs(gchar **args, struct cmd_help_t help);
 gboolean cmd_priority(gchar **args, struct cmd_help_t help);
 gboolean cmd_quit(gchar **args, struct cmd_help_t help);
 gboolean cmd_reconnect(gchar **args, struct cmd_help_t help);
+gboolean cmd_room(gchar **args, struct cmd_help_t help);
 gboolean cmd_rooms(gchar **args, struct cmd_help_t help);
 gboolean cmd_bookmark(gchar **args, struct cmd_help_t help);
 gboolean cmd_roster(gchar **args, struct cmd_help_t help);
@@ -123,5 +123,16 @@ gboolean cmd_wins(gchar **args, struct cmd_help_t help);
 gboolean cmd_xa(gchar **args, struct cmd_help_t help);
 gboolean cmd_alias(gchar **args, struct cmd_help_t help);
 gboolean cmd_xmlconsole(gchar **args, struct cmd_help_t help);
+gboolean cmd_ping(gchar **args, struct cmd_help_t help);
+gboolean cmd_form(gchar **args, struct cmd_help_t help);
+gboolean cmd_occupants(gchar **args, struct cmd_help_t help);
+gboolean cmd_kick(gchar **args, struct cmd_help_t help);
+gboolean cmd_ban(gchar **args, struct cmd_help_t help);
+gboolean cmd_subject(gchar **args, struct cmd_help_t help);
+gboolean cmd_affiliation(gchar **args, struct cmd_help_t help);
+gboolean cmd_role(gchar **args, struct cmd_help_t help);
+gboolean cmd_privileges(gchar **args, struct cmd_help_t help);
+
+gboolean cmd_form_field(char *tag, gchar **args);
 
 #endif

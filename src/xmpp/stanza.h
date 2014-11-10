@@ -36,6 +36,7 @@
 #define XMPP_STANZA_H
 
 #include <strophe.h>
+#include <xmpp/xmpp.h>
 
 #define STANZA_NAME_ACTIVE "active"
 #define STANZA_NAME_INACTIVE "inactive"
@@ -74,6 +75,8 @@
 #define STANZA_NAME_PASSWORD "password"
 #define STANZA_NAME_CONFERENCE "conference"
 #define STANZA_NAME_VALUE "value"
+#define STANZA_NAME_DESTROY "destroy"
+#define STANZA_NAME_ACTOR "actor"
 
 // error conditions
 #define STANZA_NAME_BAD_REQUEST "bad-request"
@@ -141,6 +144,8 @@
 #define STANZA_NS_CHATSTATES "http://jabber.org/protocol/chatstates"
 #define STANZA_NS_MUC "http://jabber.org/protocol/muc"
 #define STANZA_NS_MUC_USER "http://jabber.org/protocol/muc#user"
+#define STANZA_NS_MUC_OWNER "http://jabber.org/protocol/muc#owner"
+#define STANZA_NS_MUC_ADMIN "http://jabber.org/protocol/muc#admin"
 #define STANZA_NS_CAPS "http://jabber.org/protocol/caps"
 #define STANZA_NS_PING "urn:xmpp:ping"
 #define STANZA_NS_LASTACTIVITY "jabber:iq:last"
@@ -151,16 +156,6 @@
 #define STANZA_NS_PUBSUB "http://jabber.org/protocol/pubsub"
 
 #define STANZA_DATAFORM_SOFTWARE "urn:xmpp:dataforms:softwareinfo"
-
-typedef struct form_field_t {
-    char *var;
-    GSList *values;
-} FormField;
-
-typedef struct data_form_t {
-    char *form_type;
-    GSList *fields;
-} DataForm;
 
 xmpp_stanza_t* stanza_create_bookmarks_storage_request(xmpp_ctx_t *ctx);
 
@@ -183,7 +178,7 @@ xmpp_stanza_t* stanza_create_room_leave_presence(xmpp_ctx_t *ctx,
 xmpp_stanza_t* stanza_create_presence(xmpp_ctx_t * const ctx);
 
 xmpp_stanza_t* stanza_create_roster_iq(xmpp_ctx_t *ctx);
-xmpp_stanza_t* stanza_create_ping_iq(xmpp_ctx_t *ctx);
+xmpp_stanza_t* stanza_create_ping_iq(xmpp_ctx_t *ctx, const char * const target);
 xmpp_stanza_t* stanza_create_disco_info_iq(xmpp_ctx_t *ctx, const char * const id,
     const char * const to, const char * const node);
 
@@ -198,13 +193,37 @@ gboolean stanza_is_muc_presence(xmpp_stanza_t * const stanza);
 gboolean stanza_is_muc_self_presence(xmpp_stanza_t * const stanza,
     const char * const self_jid);
 gboolean stanza_is_room_nick_change(xmpp_stanza_t * const stanza);
+gboolean stanza_muc_requires_config(xmpp_stanza_t * const stanza);
 
 char * stanza_get_new_nick(xmpp_stanza_t * const stanza);
+xmpp_stanza_t* stanza_create_instant_room_request_iq(xmpp_ctx_t *ctx,
+    const char * const room_jid);
+xmpp_stanza_t* stanza_create_instant_room_destroy_iq(xmpp_ctx_t *ctx,
+    const char * const room_jid);
+xmpp_stanza_t* stanza_create_room_config_request_iq(xmpp_ctx_t *ctx,
+    const char * const room_jid);
+xmpp_stanza_t* stanza_create_room_config_cancel_iq(xmpp_ctx_t *ctx,
+    const char * const room_jid);
+xmpp_stanza_t* stanza_create_room_config_submit_iq(xmpp_ctx_t *ctx,
+    const char * const room, DataForm *form);
+xmpp_stanza_t* stanza_create_room_affiliation_list_iq(xmpp_ctx_t *ctx, const char * const room,
+    const char * const affiliation);
+xmpp_stanza_t* stanza_create_room_affiliation_set_iq(xmpp_ctx_t *ctx, const char * const room, const char * const jid,
+    const char * const affiliation, const char * const reason);
+xmpp_stanza_t* stanza_create_room_role_set_iq(xmpp_ctx_t * const ctx, const char * const room, const char * const jid,
+    const char * const role, const char * const reason);
+xmpp_stanza_t* stanza_create_room_role_list_iq(xmpp_ctx_t *ctx, const char * const room, const char * const role);
+
+xmpp_stanza_t* stanza_create_room_subject_message(xmpp_ctx_t *ctx, const char * const room, const char * const subject);
+xmpp_stanza_t* stanza_create_room_kick_iq(xmpp_ctx_t * const ctx, const char * const room, const char * const nick,
+    const char * const reason);
 
 int stanza_get_idle_time(xmpp_stanza_t * const stanza);
 char * stanza_get_caps_str(xmpp_stanza_t * const stanza);
 gboolean stanza_contains_caps(xmpp_stanza_t * const stanza);
 char * stanza_caps_get_hash(xmpp_stanza_t * const stanza);
+char * stanza_get_caps_ver(xmpp_stanza_t * const stanza);
+char * stanza_caps_get_node(xmpp_stanza_t * const stanza);
 
 DataForm * stanza_create_form(xmpp_stanza_t * const stanza);
 void stanza_destroy_form(DataForm *form);
@@ -233,5 +252,13 @@ xmpp_stanza_t * stanza_create_roster_remove_set(xmpp_ctx_t *ctx,
     const char * const barejid);
 
 char * stanza_get_error_message(xmpp_stanza_t * const stanza);
+
+GSList* stanza_get_status_codes_by_ns(xmpp_stanza_t * const stanza, char *ns);
+gboolean stanza_room_destroyed(xmpp_stanza_t *stanza);
+char* stanza_get_muc_destroy_alternative_room(xmpp_stanza_t *stanza);
+char* stanza_get_muc_destroy_alternative_password(xmpp_stanza_t *stanza);
+char* stanza_get_muc_destroy_reason(xmpp_stanza_t *stanza);
+char* stanza_get_actor(xmpp_stanza_t *stanza);
+char* stanza_get_reason(xmpp_stanza_t *stanza);
 
 #endif

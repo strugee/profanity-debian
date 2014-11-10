@@ -31,6 +31,7 @@
 #include "test_muc.h"
 #include "test_cmd_roster.h"
 #include "test_cmd_win.h"
+#include "test_form.h"
 
 int main(int argc, char* argv[]) {
     const UnitTest all_tests[] = {
@@ -418,12 +419,12 @@ int main(int argc, char* argv[]) {
             load_preferences,
             close_preferences),
 
-        unit_test_setup_teardown(test_muc_add_invite, muc_before_test, muc_after_test),
+        unit_test_setup_teardown(test_muc_invites_add, muc_before_test, muc_after_test),
         unit_test_setup_teardown(test_muc_remove_invite, muc_before_test, muc_after_test),
-        unit_test_setup_teardown(test_muc_invite_count_0, muc_before_test, muc_after_test),
-        unit_test_setup_teardown(test_muc_invite_count_5, muc_before_test, muc_after_test),
+        unit_test_setup_teardown(test_muc_invites_count_0, muc_before_test, muc_after_test),
+        unit_test_setup_teardown(test_muc_invites_count_5, muc_before_test, muc_after_test),
         unit_test_setup_teardown(test_muc_room_is_not_active, muc_before_test, muc_after_test),
-        unit_test_setup_teardown(test_muc_room_is_active, muc_before_test, muc_after_test),
+        unit_test_setup_teardown(test_muc_active, muc_before_test, muc_after_test),
 
         unit_test(cmd_bookmark_shows_message_when_disconnected),
         unit_test(cmd_bookmark_shows_message_when_disconnecting),
@@ -486,13 +487,11 @@ int main(int argc, char* argv[]) {
         unit_test(cmd_otr_theirfp_shows_message_when_in_console),
         unit_test(cmd_otr_theirfp_shows_message_when_in_muc),
         unit_test(cmd_otr_theirfp_shows_message_when_in_private),
-        unit_test(cmd_otr_theirfp_shows_message_when_in_duck),
         unit_test(cmd_otr_theirfp_shows_message_when_non_otr_chat_window),
         unit_test(cmd_otr_theirfp_shows_fingerprint),
         unit_test(cmd_otr_start_shows_message_when_in_console),
         unit_test(cmd_otr_start_shows_message_when_in_muc),
         unit_test(cmd_otr_start_shows_message_when_in_private),
-        unit_test(cmd_otr_start_shows_message_when_in_duck),
         unit_test(cmd_otr_start_shows_message_when_already_started),
         unit_test(cmd_otr_start_shows_message_when_no_key),
         unit_test(cmd_otr_start_sends_otr_query_message_to_current_recipeint),
@@ -529,6 +528,28 @@ int main(int argc, char* argv[]) {
 
         unit_test(cmd_win_shows_message_when_win_doesnt_exist),
         unit_test(cmd_win_switches_to_given_win_when_exists),
+
+        unit_test(get_form_type_field_returns_null_no_fields),
+        unit_test(get_form_type_field_returns_null_when_not_present),
+        unit_test(get_form_type_field_returns_value_when_present),
+        unit_test(get_field_type_returns_unknown_when_no_fields),
+        unit_test(get_field_type_returns_correct_type),
+        unit_test(set_value_adds_when_none),
+        unit_test(set_value_updates_when_one),
+        unit_test(add_unique_value_adds_when_none),
+        unit_test(add_unique_value_does_nothing_when_exists),
+        unit_test(add_unique_value_adds_when_doesnt_exist),
+        unit_test(add_value_adds_when_none),
+        unit_test(add_value_adds_when_some),
+        unit_test(add_value_adds_when_exists),
+        unit_test(remove_value_does_nothing_when_none),
+        unit_test(remove_value_does_nothing_when_doesnt_exist),
+        unit_test(remove_value_removes_when_one),
+        unit_test(remove_value_removes_when_many),
+        unit_test(remove_text_multi_value_does_nothing_when_none),
+        unit_test(remove_text_multi_value_does_nothing_when_doesnt_exist),
+        unit_test(remove_text_multi_value_removes_when_one),
+        unit_test(remove_text_multi_value_removes_when_many),
     };
 
     return run_tests(all_tests);
