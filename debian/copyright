@@ -19,11 +19,6 @@ Files: debian/*
 Copyright: 2014 Dariusz Dwornikowski <dariusz.dwornikowski@cs.put.poznan.pl>
 License: GPL-3+ with OpenSSL exception
 
-Files: debian/patches/endian.patch
-Copyright: 2014 Jurica Stanojkovic <Jurica.Stanojkovic@imgtec.com>
-License: GPL-3+ with OpenSSL exception
-
-
 License: GPL-3+ with OpenSSL exception
  Profanity is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
