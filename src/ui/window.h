@@ -1,7 +1,7 @@
 /*
  * window.h
  *
- * Copyright (C) 2012 - 2014 James Booth <boothj5@gmail.com>
+ * Copyright (C) 2012 - 2015 James Booth <boothj5@gmail.com>
  *
  * This file is part of Profanity.
  *
@@ -37,6 +37,8 @@
 
 #include "config.h"
 
+#include <wchar.h>
+
 #ifdef HAVE_NCURSESW_NCURSES_H
 #include <ncursesw/ncurses.h>
 #elif HAVE_NCURSES_H
@@ -47,16 +49,48 @@
 #include "muc.h"
 #include "ui/buffer.h"
 #include "xmpp/xmpp.h"
+#include "chat_state.h"
 
-#define NO_ME   1
-#define NO_DATE 2
-#define NO_EOL  4
+#define NO_ME           1
+#define NO_DATE         2
+#define NO_EOL          4
 #define NO_COLOUR_FROM  8
+#define NO_COLOUR_DATE  16
 
 #define PAD_SIZE 1000
 
+#define LAYOUT_SPLIT_MEMCHECK       12345671
+#define PROFCHATWIN_MEMCHECK        22374522
+#define PROFMUCWIN_MEMCHECK         52345276
+#define PROFPRIVATEWIN_MEMCHECK     77437483
+#define PROFCONFWIN_MEMCHECK        64334685
+#define PROFXMLWIN_MEMCHECK         87333463
+
 typedef enum {
-    WIN_UNUSED,
+    LAYOUT_SIMPLE,
+    LAYOUT_SPLIT
+} layout_type_t;
+
+typedef struct prof_layout_t {
+    layout_type_t type;
+    WINDOW *win;
+    ProfBuff buffer;
+    int y_pos;
+    int paged;
+} ProfLayout;
+
+typedef struct prof_layout_simple_t {
+    ProfLayout base;
+} ProfLayoutSimple;
+
+typedef struct prof_layout_split_t {
+    ProfLayout base;
+    WINDOW *subwin;
+    int sub_y_pos;
+    unsigned long memcheck;
+} ProfLayoutSplit;
+
+typedef enum {
     WIN_CONSOLE,
     WIN_CHAT,
     WIN_MUC,
@@ -66,26 +100,64 @@ typedef enum {
 } win_type_t;
 
 typedef struct prof_win_t {
-    char *from;
-    WINDOW *win;
-    WINDOW *subwin;
-    ProfBuff buffer;
     win_type_t type;
-    gboolean is_otr;
-    gboolean is_trusted;
-    int y_pos;
-    int sub_y_pos;
-    int paged;
-    int unread;
-    int history_shown;
-    DataForm *form;
+    ProfLayout *layout;
 } ProfWin;
 
-ProfWin* win_create(const char * const title, int cols, win_type_t type);
+typedef struct prof_console_win_t {
+    ProfWin window;
+} ProfConsoleWin;
+
+typedef struct prof_chat_win_t {
+    ProfWin window;
+    char *barejid;
+    int unread;
+    ChatState *state;
+    gboolean is_otr;
+    gboolean is_trusted;
+    char *resource_override;
+    gboolean history_shown;
+    unsigned long memcheck;
+} ProfChatWin;
+
+typedef struct prof_muc_win_t {
+    ProfWin window;
+    char *roomjid;
+    int unread;
+    unsigned long memcheck;
+} ProfMucWin;
+
+typedef struct prof_mucconf_win_t {
+    ProfWin window;
+    char *roomjid;
+    DataForm *form;
+    unsigned long memcheck;
+} ProfMucConfWin;
+
+typedef struct prof_private_win_t {
+    ProfWin window;
+    char *fulljid;
+    int unread;
+    unsigned long memcheck;
+} ProfPrivateWin;
+
+typedef struct prof_xml_win_t {
+    ProfWin window;
+    unsigned long memcheck;
+} ProfXMLWin;
+
+ProfWin* win_create_console(void);
+ProfWin* win_create_chat(const char * const barejid);
+ProfWin* win_create_muc(const char * const roomjid);
+ProfWin* win_create_muc_config(const char * const title, DataForm *form);
+ProfWin* win_create_private(const char * const fulljid);
+ProfWin* win_create_xmlconsole(void);
+
+char *win_get_title(ProfWin *window);
+
 void win_free(ProfWin *window);
 void win_update_virtual(ProfWin *window);
 void win_move_to_end(ProfWin *window);
-int  win_presence_colour(const char * const presence);
 void win_show_contact(ProfWin *window, PContact contact);
 void win_show_occupant(ProfWin *window, Occupant *occupant);
 void win_show_status_string(ProfWin *window, const char * const from,
@@ -96,12 +168,19 @@ void win_print_incoming_message(ProfWin *window, GTimeVal *tv_stamp,
     const char * const from, const char * const message);
 void win_show_info(ProfWin *window, PContact contact);
 void win_show_occupant_info(ProfWin *window, const char * const room, Occupant *occupant);
-void win_save_vprint(ProfWin *window, const char show_char, GTimeVal *tstamp, int flags, int attrs, const char * const from, const char * const message, ...);
-void win_save_print(ProfWin *window, const char show_char, GTimeVal *tstamp, int flags, int attrs, const char * const from, const char * const message);
+void win_save_vprint(ProfWin *window, const char show_char, GTimeVal *tstamp, int flags, theme_item_t theme_item, const char * const from, const char * const message, ...);
+void win_save_print(ProfWin *window, const char show_char, GTimeVal *tstamp, int flags, theme_item_t theme_item, const char * const from, const char * const message);
 void win_save_println(ProfWin *window, const char * const message);
 void win_save_newline(ProfWin *window);
 void win_redraw(ProfWin *window);
 void win_hide_subwin(ProfWin *window);
 void win_show_subwin(ProfWin *window);
+int win_roster_cols(void);
+int win_occpuants_cols(void);
+void win_printline_nowrap(WINDOW *win, char *msg);
+void win_handle_page(ProfWin *current, const wint_t ch, const int result);
+
+int win_unread(ProfWin *window);
+gboolean win_has_active_subwin(ProfWin *window);
 
 #endif

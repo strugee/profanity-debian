@@ -1,7 +1,7 @@
 /*
- * history.c
+ * chat_state.h
  *
- * Copyright (C) 2012 - 2014 James Booth <boothj5@gmail.com>
+ * Copyright (C) 2012 - 2015 James Booth <boothj5@gmail.com>
  *
  * This file is part of Profanity.
  *
@@ -32,50 +32,30 @@
  *
  */
 
-#include "tools/history.h"
+#ifndef CHAT_STATE_H
+#define CHAT_STATE_H
 
-#define MAX_HISTORY 100
+#include <glib.h>
 
-static History history;
+typedef enum {
+    CHAT_STATE_ACTIVE,
+    CHAT_STATE_COMPOSING,
+    CHAT_STATE_PAUSED,
+    CHAT_STATE_INACTIVE,
+    CHAT_STATE_GONE
+} chat_state_type_t;
 
-void _stringify_input(char *inp, int size, char *string);
+typedef struct prof_chat_state_t {
+    chat_state_type_t type;
+    GTimer *timer;
+} ChatState;
 
-void
-cmd_history_init(void)
-{
-    history = history_new(MAX_HISTORY);
-}
+ChatState* chat_state_new(void);
+void chat_state_free(ChatState *state);
 
-void
-cmd_history_append(char *inp)
-{
-    history_append(history, inp);
-}
+void chat_state_handle_idle(const char * const barejid, ChatState *state);
+void chat_state_handle_typing(const char * const barejid, ChatState *state);
+void chat_state_active(ChatState *state);
+void chat_state_gone(const char * const barejid, ChatState *state);
 
-char *
-cmd_history_previous(char *inp, int *size)
-{
-    char inp_str[*size + 1];
-    _stringify_input(inp, *size, inp_str);
-
-    return history_previous(history, inp_str);
-}
-
-char *
-cmd_history_next(char *inp, int *size)
-{
-    char inp_str[*size + 1];
-    _stringify_input(inp, *size, inp_str);
-
-    return history_next(history, inp_str);
-}
-
-void
-_stringify_input(char *inp, int size, char *string)
-{
-    int i;
-    for (i = 0; i < size; i++) {
-        string[i] = inp[i];
-    }
-    string[size] = '\0';
-}
+#endif

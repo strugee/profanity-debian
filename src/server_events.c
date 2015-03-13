@@ -1,7 +1,7 @@
 /*
  * server_events.c
  *
- * Copyright (C) 2012 - 2014 James Booth <boothj5@gmail.com>
+ * Copyright (C) 2012 - 2015 James Booth <boothj5@gmail.com>
  *
  * This file is part of Profanity.
  *
@@ -77,23 +77,22 @@ handle_presence_error(const char *from, const char * const type,
 
 // handle message stanza errors
 void
-handle_message_error(const char * const from, const char * const type,
+handle_message_error(const char * const jid, const char * const type,
     const char * const err_msg)
 {
     // handle errors from no recipient
-    if (from == NULL) {
+    if (jid == NULL) {
         ui_handle_error(err_msg);
 
     // handle recipient not found ('from' contains a value and type is 'cancel')
     } else if (type != NULL && (strcmp(type, "cancel") == 0)) {
-        ui_handle_recipient_not_found(from, err_msg);
-        if (prefs_get_boolean(PREF_STATES) && chat_session_exists(from)) {
-            chat_session_set_recipient_supports(from, FALSE);
-        }
+        log_info("Recipient %s not found: %s", jid, err_msg);
+        Jid *jidp = jid_create(jid);
+        chat_session_remove(jidp->barejid);
 
     // handle any other error from recipient
     } else {
-        ui_handle_recipient_error(from, err_msg);
+        ui_handle_recipient_error(jid, err_msg);
     }
 }
 
@@ -122,6 +121,14 @@ handle_login_account_success(char *account_name)
 
     log_info("%s logged in successfully", account->jid);
     account_free(account);
+}
+
+void
+handle_roster_received(void)
+{
+    if (prefs_get_boolean(PREF_ROSTER)) {
+        ui_show_roster();
+    }
 }
 
 void
@@ -284,133 +291,164 @@ handle_room_message(const char * const room_jid, const char * const nick,
 }
 
 void
-handle_incoming_message(char *from, char *message, gboolean priv)
+handle_incoming_private_message(char *fulljid, char *message)
+{
+    ui_incoming_private_msg(fulljid, message, NULL);
+}
+
+void
+handle_incoming_message(char *barejid, char *resource, char *message)
 {
 #ifdef HAVE_LIBOTR
     gboolean was_decrypted = FALSE;
     char *newmessage;
 
-    prof_otrpolicy_t policy = otr_get_policy(from);
+    prof_otrpolicy_t policy = otr_get_policy(barejid);
     char *whitespace_base = strstr(message,OTRL_MESSAGE_TAG_BASE);
 
-    if (!priv) {
-        //check for OTR whitespace (opportunistic or always)
-        if (policy == PROF_OTRPOLICY_OPPORTUNISTIC || policy == PROF_OTRPOLICY_ALWAYS) {
-            if (whitespace_base) {
-                if (strstr(message, OTRL_MESSAGE_TAG_V2) || strstr(message, OTRL_MESSAGE_TAG_V1)) {
-                    // Remove whitespace pattern for proper display in UI
-                    // Handle both BASE+TAGV1/2(16+8) and BASE+TAGV1+TAGV2(16+8+8)
-                    int tag_length	=	24;
-                    if (strstr(message, OTRL_MESSAGE_TAG_V2) && strstr(message, OTRL_MESSAGE_TAG_V1)) {
-                        tag_length = 32;
-                    }
-                    memmove(whitespace_base, whitespace_base+tag_length, tag_length);
-                    char *otr_query_message = otr_start_query();
-                    cons_show("OTR Whitespace pattern detected. Attempting to start OTR session...");
-                    message_send(otr_query_message, from);
+    //check for OTR whitespace (opportunistic or always)
+    if (policy == PROF_OTRPOLICY_OPPORTUNISTIC || policy == PROF_OTRPOLICY_ALWAYS) {
+        if (whitespace_base) {
+            if (strstr(message, OTRL_MESSAGE_TAG_V2) || strstr(message, OTRL_MESSAGE_TAG_V1)) {
+                // Remove whitespace pattern for proper display in UI
+                // Handle both BASE+TAGV1/2(16+8) and BASE+TAGV1+TAGV2(16+8+8)
+                int tag_length	=	24;
+                if (strstr(message, OTRL_MESSAGE_TAG_V2) && strstr(message, OTRL_MESSAGE_TAG_V1)) {
+                    tag_length = 32;
                 }
+                memmove(whitespace_base, whitespace_base+tag_length, tag_length);
+                char *otr_query_message = otr_start_query();
+                cons_show("OTR Whitespace pattern detected. Attempting to start OTR session...");
+                message_send_chat(barejid, otr_query_message);
             }
         }
-        newmessage = otr_decrypt_message(from, message, &was_decrypted);
-
-        // internal OTR message
-        if (newmessage == NULL) {
-            return;
-        }
-    } else {
-        newmessage = message;
     }
+    newmessage = otr_decrypt_message(barejid, message, &was_decrypted);
+
+    // internal OTR message
+    if (newmessage == NULL) {
+        return;
+    }
+
     if (policy == PROF_OTRPOLICY_ALWAYS && !was_decrypted && !whitespace_base) {
         char *otr_query_message = otr_start_query();
         cons_show("Attempting to start OTR session...");
-        message_send(otr_query_message, from);
+        message_send_chat(barejid, otr_query_message);
     }
 
-    ui_incoming_msg(from, newmessage, NULL, priv);
+    ui_incoming_msg(barejid, resource, newmessage, NULL);
 
-    if (prefs_get_boolean(PREF_CHLOG) && !priv) {
-        Jid *from_jid = jid_create(from);
+    if (prefs_get_boolean(PREF_CHLOG)) {
         const char *jid = jabber_get_fulljid();
         Jid *jidp = jid_create(jid);
 
         char *pref_otr_log = prefs_get_string(PREF_OTR_LOG);
         if (!was_decrypted || (strcmp(pref_otr_log, "on") == 0)) {
-            chat_log_chat(jidp->barejid, from_jid->barejid, newmessage, PROF_IN_LOG, NULL);
+            chat_log_chat(jidp->barejid, barejid, newmessage, PROF_IN_LOG, NULL);
         } else if (strcmp(pref_otr_log, "redact") == 0) {
-            chat_log_chat(jidp->barejid, from_jid->barejid, "[redacted]", PROF_IN_LOG, NULL);
+            chat_log_chat(jidp->barejid, barejid, "[redacted]", PROF_IN_LOG, NULL);
         }
         prefs_free_string(pref_otr_log);
 
         jid_destroy(jidp);
-        jid_destroy(from_jid);
     }
 
-    if (!priv)
-        otr_free_message(newmessage);
+    otr_free_message(newmessage);
 #else
-    ui_incoming_msg(from, message, NULL, priv);
+    ui_incoming_msg(barejid, resource, message, NULL);
 
-    if (prefs_get_boolean(PREF_CHLOG) && !priv) {
-        Jid *from_jid = jid_create(from);
+    if (prefs_get_boolean(PREF_CHLOG)) {
         const char *jid = jabber_get_fulljid();
         Jid *jidp = jid_create(jid);
-        chat_log_chat(jidp->barejid, from_jid->barejid, message, PROF_IN_LOG, NULL);
+        chat_log_chat(jidp->barejid, barejid, message, PROF_IN_LOG, NULL);
         jid_destroy(jidp);
-        jid_destroy(from_jid);
     }
 #endif
 }
 
 void
-handle_delayed_message(char *from, char *message, GTimeVal tv_stamp,
-    gboolean priv)
+handle_delayed_private_message(char *fulljid, char *message, GTimeVal tv_stamp)
 {
-    ui_incoming_msg(from, message, &tv_stamp, priv);
+    ui_incoming_private_msg(fulljid, message, &tv_stamp);
+}
 
-    if (prefs_get_boolean(PREF_CHLOG) && !priv) {
-        Jid *from_jid = jid_create(from);
+void
+handle_delayed_message(char *barejid, char *message, GTimeVal tv_stamp)
+{
+    ui_incoming_msg(barejid, NULL, message, &tv_stamp);
+
+    if (prefs_get_boolean(PREF_CHLOG)) {
         const char *jid = jabber_get_fulljid();
         Jid *jidp = jid_create(jid);
-        chat_log_chat(jidp->barejid, from_jid->barejid, message, PROF_IN_LOG, &tv_stamp);
+        chat_log_chat(jidp->barejid, barejid, message, PROF_IN_LOG, &tv_stamp);
         jid_destroy(jidp);
-        jid_destroy(from_jid);
     }
 }
 
 void
-handle_typing(char *from)
+handle_typing(char *barejid, char *resource)
 {
-    ui_contact_typing(from);
+    ui_contact_typing(barejid, resource);
+    if (ui_chat_win_exists(barejid)) {
+        chat_session_recipient_typing(barejid, resource);
+    }
 }
 
 void
-handle_gone(const char * const from)
+handle_paused(char *barejid, char *resource)
 {
-    ui_recipient_gone(from);
+    if (ui_chat_win_exists(barejid)) {
+        chat_session_recipient_paused(barejid, resource);
+    }
 }
 
 void
-handle_subscription(const char *from, jabber_subscr_t type)
+handle_inactive(char *barejid, char *resource)
+{
+    if (ui_chat_win_exists(barejid)) {
+        chat_session_recipient_inactive(barejid, resource);
+    }
+}
+
+void
+handle_gone(const char * const barejid, const char * const resource)
+{
+    ui_recipient_gone(barejid, resource);
+    if (ui_chat_win_exists(barejid)) {
+        chat_session_recipient_gone(barejid, resource);
+    }
+}
+
+void
+handle_activity(const char * const barejid, const char * const resource, gboolean send_states)
+{
+    if (ui_chat_win_exists(barejid)) {
+        chat_session_recipient_active(barejid, resource, send_states);
+    }
+}
+
+void
+handle_subscription(const char *barejid, jabber_subscr_t type)
 {
     switch (type) {
     case PRESENCE_SUBSCRIBE:
         /* TODO: auto-subscribe if needed */
-        cons_show("Received authorization request from %s", from);
-        log_info("Received authorization request from %s", from);
-        ui_print_system_msg_from_recipient(from, "Authorization request, type '/sub allow' to accept or '/sub deny' to reject");
+        cons_show("Received authorization request from %s", barejid);
+        log_info("Received authorization request from %s", barejid);
+        ui_print_system_msg_from_recipient(barejid, "Authorization request, type '/sub allow' to accept or '/sub deny' to reject");
         if (prefs_get_boolean(PREF_NOTIFY_SUB)) {
-            notify_subscription(from);
+            notify_subscription(barejid);
         }
         break;
     case PRESENCE_SUBSCRIBED:
-        cons_show("Subscription received from %s", from);
-        log_info("Subscription received from %s", from);
-        ui_print_system_msg_from_recipient(from, "Subscribed");
+        cons_show("Subscription received from %s", barejid);
+        log_info("Subscription received from %s", barejid);
+        ui_print_system_msg_from_recipient(barejid, "Subscribed");
         break;
     case PRESENCE_UNSUBSCRIBED:
-        cons_show("%s deleted subscription", from);
-        log_info("%s deleted subscription", from);
-        ui_print_system_msg_from_recipient(from, "Unsubscribed");
+        cons_show("%s deleted subscription", barejid);
+        log_info("%s deleted subscription", barejid);
+        ui_print_system_msg_from_recipient(barejid, "Unsubscribed");
         break;
     default:
         /* unknown type */
@@ -424,36 +462,11 @@ handle_contact_offline(char *barejid, char *resource, char *status)
     gboolean updated = roster_contact_offline(barejid, resource, status);
 
     if (resource != NULL && updated) {
-        char *show_console = prefs_get_string(PREF_STATUSES_CONSOLE);
-        char *show_chat_win = prefs_get_string(PREF_STATUSES_CHAT);
-        Jid *jid = jid_create_from_bare_and_resource(barejid, resource);
-        PContact contact = roster_get_contact(barejid);
-        if (p_contact_subscription(contact) != NULL) {
-            if (strcmp(p_contact_subscription(contact), "none") != 0) {
-
-                // show in console if "all"
-                if (g_strcmp0(show_console, "all") == 0) {
-                    cons_show_contact_offline(contact, resource, status);
-
-                // show in console of "online"
-                } else if (g_strcmp0(show_console, "online") == 0) {
-                    cons_show_contact_offline(contact, resource, status);
-                }
-
-                // show in chat win if "all"
-                if (g_strcmp0(show_chat_win, "all") == 0) {
-                    ui_chat_win_contact_offline(contact, resource, status);
-
-                // show in char win if "online" and presence online
-                } else if (g_strcmp0(show_chat_win, "online") == 0) {
-                    ui_chat_win_contact_offline(contact, resource, status);
-                }
-            }
-        }
-        prefs_free_string(show_console);
-        prefs_free_string(show_chat_win);
-        jid_destroy(jid);
+        ui_contact_offline(barejid, resource, status);
     }
+
+    rosterwin_roster();
+    chat_session_remove(barejid);
 }
 
 void
@@ -494,6 +507,9 @@ handle_contact_online(char *barejid, Resource *resource,
         prefs_free_string(show_console);
         prefs_free_string(show_chat_win);
     }
+
+    rosterwin_roster();
+    chat_session_remove(barejid);
 }
 
 void
@@ -573,7 +589,7 @@ handle_room_occupant_offline(const char * const room, const char * const nick,
         ui_room_member_offline(room, nick);
     }
     prefs_free_string(muc_status_pref);
-    ui_muc_roster(room);
+    occupantswin_occupants(room);
 }
 
 void
@@ -582,7 +598,7 @@ handle_room_occupent_kicked(const char * const room, const char * const nick, co
 {
     muc_roster_remove(room, nick);
     ui_room_member_kicked(room, nick, actor, reason);
-    ui_muc_roster(room);
+    occupantswin_occupants(room);
 }
 
 void
@@ -591,7 +607,7 @@ handle_room_occupent_banned(const char * const room, const char * const nick, co
 {
     muc_roster_remove(room, nick);
     ui_room_member_banned(room, nick, actor, reason);
-    ui_muc_roster(room);
+    occupantswin_occupants(room);
 }
 
 void
@@ -618,6 +634,14 @@ void
 handle_roster_add(const char * const barejid, const char * const name)
 {
     ui_roster_add(barejid, name);
+}
+
+void
+handle_roster_update(const char * const barejid, const char * const name,
+    GSList *groups, const char * const subscription, gboolean pending_out)
+{
+    roster_update(barejid, name, groups, subscription, pending_out);
+    rosterwin_roster();
 }
 
 void
@@ -724,7 +748,7 @@ handle_muc_self_online(const char * const room, const char * const nick, gboolea
         }
     }
 
-    ui_muc_roster(room);
+    occupantswin_occupants(room);
 }
 
 void
@@ -753,7 +777,7 @@ handle_muc_occupant_online(const char * const room, const char * const nick, con
     if (old_nick) {
         ui_room_member_nick_change(room, old_nick, nick);
         free(old_nick);
-        ui_muc_roster(room);
+        occupantswin_occupants(room);
         return;
     }
 
@@ -764,7 +788,7 @@ handle_muc_occupant_online(const char * const room, const char * const nick, con
             ui_room_member_online(room, nick, role, affiliation, show, status);
         }
         prefs_free_string(muc_status_pref);
-        ui_muc_roster(room);
+        occupantswin_occupants(room);
         return;
     }
 
@@ -775,7 +799,7 @@ handle_muc_occupant_online(const char * const room, const char * const nick, con
             ui_room_member_presence(room, nick, show, status);
         }
         prefs_free_string(muc_status_pref);
-        ui_muc_roster(room);
+        occupantswin_occupants(room);
 
     // presence unchanged, check for role/affiliation change
     } else {
@@ -793,6 +817,6 @@ handle_muc_occupant_online(const char * const room, const char * const nick, con
                 ui_room_occupant_affiliation_change(room, nick, affiliation, actor, reason);
             }
         }
-        ui_muc_roster(room);
+        occupantswin_occupants(room);
     }
 }

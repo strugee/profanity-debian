@@ -1,7 +1,7 @@
 /*
  * profanity.c
  *
- * Copyright (C) 2012 - 2014 James Booth <boothj5@gmail.com>
+ * Copyright (C) 2012 - 2015 James Booth <boothj5@gmail.com>
  *
  * This file is part of Profanity.
  *
@@ -46,6 +46,7 @@
 
 #include "profanity.h"
 #include "chat_session.h"
+#include "chat_state.h"
 #include "config/accounts.h"
 #include "config/preferences.h"
 #include "config/theme.h"
@@ -61,11 +62,13 @@
 #include "resource.h"
 #include "xmpp/xmpp.h"
 #include "ui/ui.h"
+#include "ui/windows.h"
 
-static void _handle_idle_time(void);
+static void _check_autoaway(void);
 static void _init(const int disable_tls, char *log_level);
 static void _shutdown(void);
 static void _create_directories(void);
+static void _connect_default(const char * const account);
 
 static gboolean idle = FALSE;
 
@@ -73,62 +76,29 @@ void
 prof_run(const int disable_tls, char *log_level, char *account_name)
 {
     _init(disable_tls, log_level);
-    log_info("Starting main event loop");
-    ui_input_nonblocking();
-    GTimer *timer = g_timer_new();
-    gboolean cmd_result = TRUE;
-    jabber_conn_status_t conn_status = jabber_get_connection_status();
-
-    char inp[INP_WIN_MAX];
-    int size = 0;
-
-    char *pref_connect_account = prefs_get_string(PREF_CONNECT_ACCOUNT);
-    if (account_name != NULL) {
-        char *cmd = "/connect";
-        snprintf(inp, sizeof(inp), "%s %s", cmd, account_name);
-        process_input(inp);
-    } else if (pref_connect_account != NULL) {
-        char *cmd = "/connect";
-        snprintf(inp, sizeof(inp), "%s %s", cmd, pref_connect_account);
-        process_input(inp);
-    }
-    prefs_free_string(pref_connect_account);
+    _connect_default(account_name);
     ui_update();
 
-    while(cmd_result == TRUE) {
-        wint_t ch = ERR;
-        int result;
-        size = 0;
+    char *line = NULL;
+    gboolean cmd_result = TRUE;
 
-        while(ch != '\n') {
-            conn_status = jabber_get_connection_status();
-            if (conn_status == JABBER_CONNECTED) {
-                _handle_idle_time();
-            }
+    log_info("Starting main event loop");
 
-            gdouble elapsed = g_timer_elapsed(timer, NULL);
-
-            gint remind_period = prefs_get_notify_remind();
-            if (remind_period > 0 && elapsed >= remind_period) {
-                notify_remind();
-                g_timer_start(timer);
-            }
-
-            ui_handle_special_keys(&ch, result, inp, size);
+    while(cmd_result) {
+        while(!line) {
+            _check_autoaway();
+            line = ui_readline();
 #ifdef HAVE_LIBOTR
             otr_poll();
 #endif
+            notify_remind();
             jabber_process_events();
             ui_update();
-
-            ch = ui_get_char(inp, &size, &result);
         }
-
-        inp[size++] = '\0';
-        cmd_result = process_input(inp);
+        cmd_result = cmd_process_input(line);
+        ui_input_clear();
+        FREE_SET_NULL(line);
     }
-
-    g_timer_destroy(timer);
 }
 
 void
@@ -136,27 +106,13 @@ prof_handle_idle(void)
 {
     jabber_conn_status_t status = jabber_get_connection_status();
     if (status == JABBER_CONNECTED) {
-        GSList *recipients = ui_get_recipients();
+        GSList *recipients = ui_get_chat_recipients();
         GSList *curr = recipients;
 
         while (curr != NULL) {
-            char *recipient = curr->data;
-            if (chat_session_get_recipient_supports(recipient)) {
-                chat_session_no_activity(recipient);
-
-                if (chat_session_is_gone(recipient) &&
-                        !chat_session_get_sent(recipient)) {
-                    message_send_gone(recipient);
-                } else if (chat_session_is_inactive(recipient) &&
-                        !chat_session_get_sent(recipient)) {
-                    message_send_inactive(recipient);
-                } else if (prefs_get_boolean(PREF_OUTTYPE) &&
-                        chat_session_is_paused(recipient) &&
-                        !chat_session_get_sent(recipient)) {
-                    message_send_paused(recipient);
-                }
-            }
-
+            char *barejid = curr->data;
+            ProfChatWin *chatwin = wins_get_chat(barejid);
+            chat_state_handle_idle(chatwin->barejid, chatwin->state);
             curr = g_slist_next(curr);
         }
 
@@ -173,68 +129,43 @@ prof_handle_activity(void)
     jabber_conn_status_t status = jabber_get_connection_status();
 
     if ((status == JABBER_CONNECTED) && (win_type == WIN_CHAT)) {
-        char *recipient = ui_current_recipient();
-        if (chat_session_get_recipient_supports(recipient)) {
-            chat_session_set_composing(recipient);
-            if (!chat_session_get_sent(recipient) ||
-                    chat_session_is_paused(recipient)) {
-                message_send_composing(recipient);
-            }
+        ProfChatWin *chatwin = wins_get_current_chat();
+        chat_state_handle_typing(chatwin->barejid, chatwin->state);
+    }
+}
+
+static void
+_connect_default(const char * const account)
+{
+    if (account) {
+        cmd_execute_connect(account);
+    } else {
+        char *pref_connect_account = prefs_get_string(PREF_CONNECT_ACCOUNT);
+        if (pref_connect_account) {
+            cmd_execute_connect(pref_connect_account);
+            prefs_free_string(pref_connect_account);
         }
     }
 }
 
-/*
- * Take a line of input and process it, return TRUE if profanity is to
- * continue, FALSE otherwise
- */
-gboolean
-process_input(char *inp)
-{
-    log_debug("Input received: %s", inp);
-    gboolean result = FALSE;
-    g_strstrip(inp);
-
-    // add line to history if something typed
-    if (strlen(inp) > 0) {
-        cmd_history_append(inp);
-    }
-
-    // just carry on if no input
-    if (strlen(inp) == 0) {
-        result = TRUE;
-
-    // handle command if input starts with a '/'
-    } else if (inp[0] == '/') {
-        char *inp_cpy = strdup(inp);
-        char *command = strtok(inp_cpy, " ");
-        result = cmd_execute(command, inp);
-        free(inp_cpy);
-
-    // call a default handler if input didn't start with '/'
-    } else {
-        result = cmd_execute_default(inp);
-    }
-
-    ui_input_clear();
-    roster_reset_search_attempts();
-
-    return result;
-}
-
 static void
-_handle_idle_time()
+_check_autoaway()
 {
+    jabber_conn_status_t conn_status = jabber_get_connection_status();
+    if (conn_status != JABBER_CONNECTED) {
+        return;
+    }
+
     gint prefs_time = prefs_get_autoaway_time() * 60000;
-    resource_presence_t current_presence = accounts_get_last_presence(jabber_get_account_name());
     unsigned long idle_ms = ui_get_idle_time();
     char *pref_autoaway_mode = prefs_get_string(PREF_AUTOAWAY_MODE);
-    char *pref_autoaway_message = prefs_get_string(PREF_AUTOAWAY_MESSAGE);
 
     if (!idle) {
+        resource_presence_t current_presence = accounts_get_last_presence(jabber_get_account_name());
         if ((current_presence == RESOURCE_ONLINE) || (current_presence == RESOURCE_CHAT)) {
             if (idle_ms >= prefs_time) {
                 idle = TRUE;
+                char *pref_autoaway_message = prefs_get_string(PREF_AUTOAWAY_MESSAGE);
 
                 // handle away mode
                 if (strcmp(pref_autoaway_mode, "away") == 0) {
@@ -245,6 +176,8 @@ _handle_idle_time()
                 } else if (strcmp(pref_autoaway_mode, "idle") == 0) {
                     presence_update(RESOURCE_ONLINE, pref_autoaway_message, idle_ms / 1000);
                 }
+
+                prefs_free_string(pref_autoaway_message);
             }
         }
 
@@ -264,8 +197,8 @@ _handle_idle_time()
             }
         }
     }
+
     prefs_free_string(pref_autoaway_mode);
-    prefs_free_string(pref_autoaway_message);
 }
 
 static void
@@ -274,6 +207,8 @@ _init(const int disable_tls, char *log_level)
     setlocale(LC_ALL, "");
     // ignore SIGPIPE
     signal(SIGPIPE, SIG_IGN);
+    signal(SIGINT, SIG_IGN);
+    signal(SIGTSTP, SIG_IGN);
     _create_directories();
     log_level_t prof_log_level = log_level_from_string(log_level);
     prefs_load();
@@ -303,12 +238,19 @@ _init(const int disable_tls, char *log_level)
     otr_init();
 #endif
     atexit(_shutdown);
+    ui_input_nonblocking(TRUE);
 }
 
 static void
 _shutdown(void)
 {
-    ui_clear_win_title();
+    if (prefs_get_boolean(PREF_TITLEBAR_SHOW)) {
+        if (prefs_get_boolean(PREF_TITLEBAR_GOODBYE)) {
+            ui_goodbye_title();
+        } else {
+            ui_clear_win_title();
+        }
+    }
     ui_close_all_wins();
     jabber_disconnect();
     jabber_shutdown();

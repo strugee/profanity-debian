@@ -25,7 +25,7 @@ configure.scan
 stamp-h1
 *~
 *dirstamp
-valgrind.out
+valgrind*.out*
 core
 bugs/
 TODO
@@ -62,3 +62,9 @@ profanity.mk
 profanity.project
 profanity.workspace
 m4/
+test.sh
+clean-test.sh
+callgrind.out.*
+gen_docs.sh
+main_fragment.html
+toc_fragment.html

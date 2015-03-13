@@ -1,7 +1,7 @@
 /*
  * preferences.c
  *
- * Copyright (C) 2012 - 2014 James Booth <boothj5@gmail.com>
+ * Copyright (C) 2012 - 2015 James Booth <boothj5@gmail.com>
  *
  * This file is part of Profanity.
  *
@@ -52,6 +52,7 @@
 #include "preferences.h"
 #include "tools/autocomplete.h"
 
+// preference groups refer to the sections in .profrc, for example [ui]
 #define PREF_GROUP_LOGGING "logging"
 #define PREF_GROUP_CHATSTATES "chatstates"
 #define PREF_GROUP_UI "ui"
@@ -60,6 +61,8 @@
 #define PREF_GROUP_CONNECTION "connection"
 #define PREF_GROUP_ALIAS "alias"
 #define PREF_GROUP_OTR "otr"
+
+#define INPBLOCK_DEFAULT 1000
 
 static gchar *prefs_loc;
 static GKeyFile *prefs;
@@ -97,30 +100,22 @@ prefs_load(void)
         g_error_free(err);
     }
 
-    // move pre 0.4.1 OTR preferences to [otr] group
+    // move pre 0.4.6 OTR warn preferences to [ui] group
     err = NULL;
-    gboolean ui_otr_warn = g_key_file_get_boolean(prefs, PREF_GROUP_UI, "otr.warn", &err);
+    gboolean otr_warn = g_key_file_get_boolean(prefs, PREF_GROUP_OTR, "warn", &err);
     if (err == NULL) {
-        g_key_file_set_boolean(prefs, PREF_GROUP_OTR, _get_key(PREF_OTR_WARN), ui_otr_warn);
-        g_key_file_remove_key(prefs, PREF_GROUP_UI, "otr.warn", NULL);
+        g_key_file_set_boolean(prefs, PREF_GROUP_UI, _get_key(PREF_OTR_WARN), otr_warn);
+        g_key_file_remove_key(prefs, PREF_GROUP_OTR, "warn", NULL);
     } else {
         g_error_free(err);
     }
 
+    // move pre 0.4.6 titlebar preference
     err = NULL;
-    gchar *ui_otr_log = g_key_file_get_string(prefs, PREF_GROUP_LOGGING, "otr", &err);
+    gchar *old_titlebar = g_key_file_get_string(prefs, PREF_GROUP_UI, "titlebar", &err);
     if (err == NULL) {
-        g_key_file_set_string(prefs, PREF_GROUP_OTR, _get_key(PREF_OTR_LOG), ui_otr_log);
-        g_key_file_remove_key(prefs, PREF_GROUP_LOGGING, "otr", NULL);
-    } else {
-        g_error_free(err);
-    }
-
-    err = NULL;
-    gchar *ui_otr_policy = g_key_file_get_string(prefs, "policy", "otr.policy", &err);
-    if (err == NULL) {
-        g_key_file_set_string(prefs, PREF_GROUP_OTR, _get_key(PREF_OTR_POLICY), ui_otr_policy);
-        g_key_file_remove_group(prefs, "policy", NULL);
+        g_key_file_set_string(prefs, PREF_GROUP_UI, _get_key(PREF_TITLEBAR_SHOW), old_titlebar);
+        g_key_file_remove_key(prefs, PREF_GROUP_UI, "titlebar", NULL);
     } else {
         g_error_free(err);
     }
@@ -141,7 +136,7 @@ prefs_close(void)
 }
 
 char *
-prefs_autocomplete_boolean_choice(char *prefix)
+prefs_autocomplete_boolean_choice(const char * const prefix)
 {
     return autocomplete_complete(boolean_choice_ac, prefix, TRUE);
 }
@@ -261,6 +256,22 @@ prefs_set_max_log_size(gint value)
     _save_prefs();
 }
 
+gint prefs_get_inpblock(void)
+{
+    int val = g_key_file_get_integer(prefs, PREF_GROUP_UI, "inpblock", NULL);
+    if (val == 0) {
+        return INPBLOCK_DEFAULT;
+    } else {
+        return val;
+    }
+}
+
+void prefs_set_inpblock(gint value)
+{
+    g_key_file_set_integer(prefs, PREF_GROUP_UI, "inpblock", value);
+    _save_prefs();
+}
+
 gint
 prefs_get_priority(void)
 {
@@ -314,6 +325,44 @@ prefs_set_autoaway_time(gint value)
 {
     g_key_file_set_integer(prefs, PREF_GROUP_PRESENCE, "autoaway.time", value);
     _save_prefs();
+}
+
+void
+prefs_set_occupants_size(gint value)
+{
+    g_key_file_set_integer(prefs, PREF_GROUP_UI, "occupants.size", value);
+    _save_prefs();
+}
+
+gint
+prefs_get_occupants_size(void)
+{
+    gint result = g_key_file_get_integer(prefs, PREF_GROUP_UI, "occupants.size", NULL);
+
+    if (result > 99 || result < 1) {
+        return 15;
+    } else {
+        return result;
+    }
+}
+
+void
+prefs_set_roster_size(gint value)
+{
+    g_key_file_set_integer(prefs, PREF_GROUP_UI, "roster.size", value);
+    _save_prefs();
+}
+
+gint
+prefs_get_roster_size(void)
+{
+    gint result = g_key_file_get_integer(prefs, PREF_GROUP_UI, "roster.size", NULL);
+
+    if (result > 99 || result < 1) {
+        return 25;
+    } else {
+        return result;
+    }
 }
 
 gboolean
@@ -431,6 +480,9 @@ _get_preferences_file(void)
     return result;
 }
 
+// get the preference group for a specific preference
+// for example the PREF_BEEP setting ("beep" in .profrc, see _get_key) belongs
+// to the [ui] section.
 static const char *
 _get_group(preference_t pref)
 {
@@ -440,7 +492,8 @@ _get_group(preference_t pref)
         case PREF_BEEP:
         case PREF_THEME:
         case PREF_VERCHECK:
-        case PREF_TITLEBAR:
+        case PREF_TITLEBAR_SHOW:
+        case PREF_TITLEBAR_GOODBYE:
         case PREF_FLASH:
         case PREF_INTYPE:
         case PREF_HISTORY:
@@ -451,6 +504,17 @@ _get_group(preference_t pref)
         case PREF_STATUSES_CHAT:
         case PREF_STATUSES_MUC:
         case PREF_MUC_PRIVILEGES:
+        case PREF_PRESENCE:
+        case PREF_WRAP:
+        case PREF_TIME:
+        case PREF_ROSTER:
+        case PREF_ROSTER_OFFLINE:
+        case PREF_ROSTER_RESOURCE:
+        case PREF_ROSTER_BY:
+        case PREF_RESOURCE_TITLE:
+        case PREF_RESOURCE_MESSAGE:
+        case PREF_OTR_WARN:
+        case PREF_INPBLOCK_DYNAMIC:
             return PREF_GROUP_UI;
         case PREF_STATES:
         case PREF_OUTTYPE:
@@ -476,8 +540,8 @@ _get_group(preference_t pref)
         case PREF_AUTOAWAY_MESSAGE:
             return PREF_GROUP_PRESENCE;
         case PREF_CONNECT_ACCOUNT:
+        case PREF_DEFAULT_ACCOUNT:
             return PREF_GROUP_CONNECTION;
-        case PREF_OTR_WARN:
         case PREF_OTR_LOG:
         case PREF_OTR_POLICY:
             return PREF_GROUP_OTR;
@@ -486,6 +550,8 @@ _get_group(preference_t pref)
     }
 }
 
+// get the key used in .profrc for the preference
+// for example the PREF_AUTOAWAY_MODE maps to "autoaway.mode" in .profrc
 static const char *
 _get_key(preference_t pref)
 {
@@ -499,8 +565,10 @@ _get_key(preference_t pref)
             return "theme";
         case PREF_VERCHECK:
             return "vercheck";
-        case PREF_TITLEBAR:
-            return "titlebar";
+        case PREF_TITLEBAR_SHOW:
+            return "titlebar.show";
+        case PREF_TITLEBAR_GOODBYE:
+            return "titlebar.goodbye";
         case PREF_FLASH:
             return "flash";
         case PREF_INTYPE:
@@ -557,43 +625,80 @@ _get_key(preference_t pref)
             return "autoaway.message";
         case PREF_CONNECT_ACCOUNT:
             return "account";
+        case PREF_DEFAULT_ACCOUNT:
+            return "defaccount";
         case PREF_OTR_LOG:
             return "log";
         case PREF_OTR_WARN:
-            return "warn";
+            return "otr.warn";
         case PREF_OTR_POLICY:
             return "policy";
         case PREF_LOG_ROTATE:
             return "rotate";
         case PREF_LOG_SHARED:
             return "shared";
+        case PREF_PRESENCE:
+            return "presence";
+        case PREF_WRAP:
+            return "wrap";
+        case PREF_TIME:
+            return "time";
+        case PREF_ROSTER:
+            return "roster";
+        case PREF_ROSTER_OFFLINE:
+            return "roster.offline";
+        case PREF_ROSTER_RESOURCE:
+            return "roster.resource";
+        case PREF_ROSTER_BY:
+            return "roster.by";
+        case PREF_RESOURCE_TITLE:
+            return "resource.title";
+        case PREF_RESOURCE_MESSAGE:
+            return "resource.message";
+        case PREF_INPBLOCK_DYNAMIC:
+            return "inpblock.dynamic";
         default:
             return NULL;
     }
 }
 
+// the default setting for a boolean type preference
+// if it is not specified in .profrc
 static gboolean
 _get_default_boolean(preference_t pref)
 {
     switch (pref)
     {
-        case PREF_TITLEBAR:
         case PREF_OTR_WARN:
         case PREF_AUTOAWAY_CHECK:
         case PREF_LOG_ROTATE:
         case PREF_LOG_SHARED:
+        case PREF_NOTIFY_MESSAGE:
         case PREF_NOTIFY_MESSAGE_CURRENT:
         case PREF_NOTIFY_ROOM_CURRENT:
+        case PREF_NOTIFY_TYPING:
         case PREF_NOTIFY_TYPING_CURRENT:
+        case PREF_NOTIFY_SUB:
+        case PREF_NOTIFY_INVITE:
         case PREF_SPLASH:
         case PREF_OCCUPANTS:
         case PREF_MUC_PRIVILEGES:
+        case PREF_PRESENCE:
+        case PREF_WRAP:
+        case PREF_INPBLOCK_DYNAMIC:
+        case PREF_RESOURCE_TITLE:
+        case PREF_RESOURCE_MESSAGE:
+        case PREF_ROSTER:
+        case PREF_ROSTER_OFFLINE:
+        case PREF_ROSTER_RESOURCE:
             return TRUE;
         default:
             return FALSE;
     }
 }
 
+// the default setting for a string type preference
+// if it is not specified in .profrc
 static char *
 _get_default_string(preference_t pref)
 {
@@ -601,7 +706,7 @@ _get_default_string(preference_t pref)
     {
         case PREF_AUTOAWAY_MODE:
         case PREF_NOTIFY_ROOM:
-            return "off";
+            return "on";
         case PREF_OTR_LOG:
             return "redact";
         case PREF_OTR_POLICY:
@@ -610,6 +715,10 @@ _get_default_string(preference_t pref)
         case PREF_STATUSES_CHAT:
         case PREF_STATUSES_MUC:
             return "all";
+        case PREF_ROSTER_BY:
+            return "presence";
+        case PREF_TIME:
+            return "seconds";
         default:
             return NULL;
     }

@@ -1,7 +1,7 @@
 /*
  * commands.h
  *
- * Copyright (C) 2012 - 2014 James Booth <boothj5@gmail.com>
+ * Copyright (C) 2012 - 2015 James Booth <boothj5@gmail.com>
  *
  * This file is part of Profanity.
  *
@@ -58,7 +58,7 @@ typedef struct cmd_t {
     gchar** (*parser)(const char * const inp, int min, int max, gboolean *result);
     int min_args;
     int max_args;
-    void (**setting_func)(void);
+    void (*setting_func)(void);
     CommandHelp help;
 } Command;
 
@@ -132,6 +132,11 @@ gboolean cmd_subject(gchar **args, struct cmd_help_t help);
 gboolean cmd_affiliation(gchar **args, struct cmd_help_t help);
 gboolean cmd_role(gchar **args, struct cmd_help_t help);
 gboolean cmd_privileges(gchar **args, struct cmd_help_t help);
+gboolean cmd_presence(gchar **args, struct cmd_help_t help);
+gboolean cmd_wrap(gchar **args, struct cmd_help_t help);
+gboolean cmd_time(gchar **args, struct cmd_help_t help);
+gboolean cmd_resource(gchar **args, struct cmd_help_t help);
+gboolean cmd_inpblock(gchar **args, struct cmd_help_t help);
 
 gboolean cmd_form_field(char *tag, gchar **args);
 

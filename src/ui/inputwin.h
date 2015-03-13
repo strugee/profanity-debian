@@ -1,7 +1,7 @@
 /*
  * inputwin.c
  *
- * Copyright (C) 2012 - 2014 James Booth <boothj5@gmail.com>
+ * Copyright (C) 2012 - 2015 James Booth <boothj5@gmail.com>
  *
  * This file is part of Profanity.
  *
@@ -36,13 +36,14 @@
 #define UI_INPUTWIN_H
 
 void create_input_window(void);
-wint_t inp_get_char(char *input, int *size, int *result);
+char* inp_read(int *key_type, wint_t *ch);
 void inp_win_reset(void);
-void inp_win_resize(const char * input, const int size);
+void inp_win_resize(void);
 void inp_put_back(void);
-void inp_non_block(void);
+void inp_non_block(gint);
 void inp_block(void);
 void inp_get_password(char *passwd);
-void inp_replace_input(char *input, const char * const new_input, int *size);
+void inp_replace_input(const char * const new_input);
+void inp_history_append(char *inp);
 
 #endif
