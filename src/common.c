@@ -1,7 +1,7 @@
 /*
  * common.c
  *
- * Copyright (C) 2012 - 2014 James Booth <boothj5@gmail.com>
+ * Copyright (C) 2012 - 2015 James Booth <boothj5@gmail.com>
  *
  * This file is part of Profanity.
  *
@@ -50,9 +50,6 @@
 #include "log.h"
 #include "common.h"
 
-// assume malloc stores at most 8 bytes for size of allocated memory
-// and page size is at least 4KB
-#define READ_BUF_SIZE 4088
 
 struct curl_data_t
 {
@@ -194,7 +191,7 @@ str_replace(const char *string, const char *substr,
 }
 
 int
-str_contains(char str[], int size, char ch)
+str_contains(const char str[], int size, char ch)
 {
     int i;
     for (i = 0; i < size; i++) {
@@ -203,6 +200,28 @@ str_contains(char str[], int size, char ch)
     }
 
     return 0;
+}
+
+int
+utf8_display_len(const char * const str)
+{
+    if (!str) {
+        return 0;
+    }
+
+    int len = 0;
+    gchar *curr = g_utf8_offset_to_pointer(str, 0);
+    while (*curr != '\0') {
+        gunichar curru = g_utf8_get_char(curr);
+        if (g_unichar_iswide(curru)) {
+            len += 2;
+        } else {
+            len ++;
+        }
+        curr = g_utf8_next_char(curr);
+    }
+
+    return len;
 }
 
 char *
@@ -469,25 +488,34 @@ cmp_win_num(gconstpointer a, gconstpointer b)
 int
 get_next_available_win_num(GList *used)
 {
-    used = g_list_sort(used, cmp_win_num);
     // only console used
     if (g_list_length(used) == 1) {
         return 2;
     } else {
+        GList *sorted = NULL;
+        GList *curr = used;
+        while (curr) {
+            sorted = g_list_insert_sorted(sorted, curr->data, cmp_win_num);
+            curr = g_list_next(curr);
+        }
+
         int result = 0;
         int last_num = 1;
-        GList *curr = used;
+        curr = sorted;
         // skip console
         curr = g_list_next(curr);
         while (curr != NULL) {
             int curr_num = GPOINTER_TO_INT(curr->data);
+
             if (((last_num != 9) && ((last_num + 1) != curr_num)) ||
                     ((last_num == 9) && (curr_num != 0))) {
                 result = last_num + 1;
                 if (result == 10) {
                     result = 0;
                 }
+                g_list_free(sorted);
                 return (result);
+
             } else {
                 last_num = curr_num;
                 if (last_num == 0) {
@@ -501,6 +529,7 @@ get_next_available_win_num(GList *used)
             result = 0;
         }
 
+        g_list_free(sorted);
         return result;
     }
 }
@@ -546,4 +575,26 @@ get_file_or_linked(char *loc, char *basedir)
     }
 
     return true_loc;
+}
+
+char *
+strip_arg_quotes(const char * const input)
+{
+    char *unquoted = strdup(input);
+
+    // Remove starting quote if it exists
+    if(strchr(unquoted, '"') != NULL) {
+        if(strchr(unquoted, ' ') + 1 == strchr(unquoted, '"')) {
+            memmove(strchr(unquoted, '"'), strchr(unquoted, '"')+1, strchr(unquoted, '\0') - strchr(unquoted, '"'));
+        }
+    }
+
+    // Remove ending quote if it exists
+    if(strchr(unquoted, '"') != NULL) {
+        if(strchr(unquoted, '\0') - 1 == strchr(unquoted, '"')) {
+            memmove(strchr(unquoted, '"'), strchr(unquoted, '"')+1, strchr(unquoted, '\0') - strchr(unquoted, '"'));
+        }
+    }
+
+    return unquoted;
 }

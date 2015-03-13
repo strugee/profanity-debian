@@ -1,7 +1,7 @@
 /*
  * roster_list.c
  *
- * Copyright (C) 2012 - 2014 James Booth <boothj5@gmail.com>
+ * Copyright (C) 2012 - 2015 James Booth <boothj5@gmail.com>
  *
  * This file is part of Profanity.
  *
@@ -91,7 +91,7 @@ roster_update_presence(const char * const barejid, Resource *resource,
     assert(barejid != NULL);
     assert(resource != NULL);
 
-    PContact contact = g_hash_table_lookup(contacts, barejid);
+    PContact contact = roster_get_contact(barejid);
     if (contact == NULL) {
         return FALSE;
     }
@@ -109,14 +109,18 @@ roster_update_presence(const char * const barejid, Resource *resource,
 PContact
 roster_get_contact(const char * const barejid)
 {
-    return g_hash_table_lookup(contacts, barejid);
+    gchar *barejidlower = g_utf8_strdown(barejid, -1);
+    PContact contact = g_hash_table_lookup(contacts, barejidlower);
+    g_free(barejidlower);
+
+    return contact;
 }
 
 gboolean
 roster_contact_offline(const char * const barejid,
     const char * const resource, const char * const status)
 {
-    PContact contact = g_hash_table_lookup(contacts, barejid);
+    PContact contact = roster_get_contact(barejid);
 
     if (contact == NULL) {
         return FALSE;
@@ -201,6 +205,7 @@ roster_remove(const char * const name, const char * const barejid)
             g_string_free(fulljid, TRUE);
             resources = g_list_next(resources);
         }
+        g_list_free(resources);
     }
 
     // remove the contact
@@ -211,7 +216,7 @@ void
 roster_update(const char * const barejid, const char * const name,
     GSList *groups, const char * const subscription, gboolean pending_out)
 {
-    PContact contact = g_hash_table_lookup(contacts, barejid);
+    PContact contact = roster_get_contact(barejid);
     assert(contact != NULL);
 
     p_contact_set_subscription(contact, subscription);
@@ -238,7 +243,7 @@ gboolean
 roster_add(const char * const barejid, const char * const name, GSList *groups,
     const char * const subscription, gboolean pending_out)
 {
-    PContact contact = g_hash_table_lookup(contacts, barejid);
+    PContact contact = roster_get_contact(barejid);
     if (contact != NULL) {
         return FALSE;
     }
@@ -262,7 +267,31 @@ roster_add(const char * const barejid, const char * const name, GSList *groups,
 char *
 roster_barejid_from_name(const char * const name)
 {
-    return g_hash_table_lookup(name_to_barejid, name);
+    if (name) {
+        return g_hash_table_lookup(name_to_barejid, name);
+    } else {
+        return NULL;
+    }
+}
+
+GSList *
+roster_get_contacts_by_presence(const char * const presence)
+{
+    GSList *result = NULL;
+    GHashTableIter iter;
+    gpointer key;
+    gpointer value;
+
+    g_hash_table_iter_init(&iter, contacts);
+    while (g_hash_table_iter_next(&iter, &key, &value)) {
+        PContact contact = (PContact)value;
+        if (g_strcmp0(p_contact_presence(contact), presence) == 0) {
+            result = g_slist_insert_sorted(result, value, (GCompareFunc)_compare_contacts);
+        }
+    }
+
+    // return all contact structs
+    return result;
 }
 
 GSList *
@@ -278,7 +307,25 @@ roster_get_contacts(void)
         result = g_slist_insert_sorted(result, value, (GCompareFunc)_compare_contacts);
     }
 
-    // resturn all contact structs
+    // return all contact structs
+    return result;
+}
+
+GSList *
+roster_get_contacts_online(void)
+{
+    GSList *result = NULL;
+    GHashTableIter iter;
+    gpointer key;
+    gpointer value;
+
+    g_hash_table_iter_init(&iter, contacts);
+    while (g_hash_table_iter_next(&iter, &key, &value)) {
+        if(strcmp(p_contact_presence(value), "offline"))
+            result = g_slist_insert_sorted(result, value, (GCompareFunc)_compare_contacts);
+    }
+
+    // return all contact structs
     return result;
 }
 
@@ -301,15 +348,35 @@ roster_has_pending_subscriptions(void)
 }
 
 char *
-roster_find_contact(char *search_str)
+roster_contact_autocomplete(const char * const search_str)
 {
     return autocomplete_complete(name_ac, search_str, TRUE);
 }
 
 char *
-roster_find_resource(char *search_str)
+roster_fulljid_autocomplete(const char * const search_str)
 {
     return autocomplete_complete(fulljid_ac, search_str, TRUE);
+}
+
+GSList *
+roster_get_nogroup(void)
+{
+    GSList *result = NULL;
+    GHashTableIter iter;
+    gpointer key;
+    gpointer value;
+
+    g_hash_table_iter_init(&iter, contacts);
+    while (g_hash_table_iter_next(&iter, &key, &value)) {
+        GSList *groups = p_contact_groups(value);
+        if (groups == NULL) {
+            result = g_slist_insert_sorted(result, value, (GCompareFunc)_compare_contacts);
+        }
+    }
+
+    // return all contact structs
+    return result;
 }
 
 GSList *
@@ -332,7 +399,7 @@ roster_get_group(const char * const group)
         }
     }
 
-    // resturn all contact structs
+    // return all contact structs
     return result;
 }
 
@@ -343,13 +410,13 @@ roster_get_groups(void)
 }
 
 char *
-roster_find_group(char *search_str)
+roster_group_autocomplete(const char * const search_str)
 {
     return autocomplete_complete(groups_ac, search_str, TRUE);
 }
 
 char *
-roster_find_jid(char *search_str)
+roster_barejid_autocomplete(const char * const search_str)
 {
     return autocomplete_complete(barejid_ac, search_str, TRUE);
 }

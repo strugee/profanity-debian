@@ -1,7 +1,7 @@
 /*
  * common.h
  *
- * Copyright (C) 2012 - 2014 James Booth <boothj5@gmail.com>
+ * Copyright (C) 2012 - 2015 James Booth <boothj5@gmail.com>
  *
  * This file is part of Profanity.
  *
@@ -59,6 +59,11 @@
 
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
 
+// assume malloc stores at most 8 bytes for size of allocated memory
+// and page size is at least 4KB
+#define READ_BUF_SIZE 4088
+
+
 #define FREE_SET_NULL(resource) \
 do { \
     free(resource); \
@@ -98,7 +103,8 @@ gboolean create_dir(char *name);
 gboolean mkdir_recursive(const char *dir);
 char * str_replace(const char *string, const char *substr,
     const char *replacement);
-int str_contains(char str[], int size, char ch);
+int str_contains(const char str[], int size, char ch);
+int utf8_display_len(const char * const str);
 char * prof_getline(FILE *stream);
 char* release_get_latest(void);
 gboolean release_is_new(char *found_version);
@@ -117,5 +123,6 @@ int cmp_win_num(gconstpointer a, gconstpointer b);
 int get_next_available_win_num(GList *used);
 
 char* get_file_or_linked(char *loc, char *basedir);
+char * strip_arg_quotes(const char * const input);
 
 #endif

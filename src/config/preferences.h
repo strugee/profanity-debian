@@ -1,7 +1,7 @@
 /*
  * preferences.h
  *
- * Copyright (C) 2012 - 2014 James Booth <boothj5@gmail.com>
+ * Copyright (C) 2012 - 2015 James Booth <boothj5@gmail.com>
  *
  * This file is part of Profanity.
  *
@@ -47,18 +47,30 @@
 #define PREFS_MIN_LOG_SIZE 64
 #define PREFS_MAX_LOG_SIZE 1048580
 
+// represents all settings in .profrc
+// each enum value is mapped to a group and key in .profrc (see preferences.c)
 typedef enum {
     PREF_SPLASH,
     PREF_BEEP,
     PREF_VERCHECK,
     PREF_THEME,
-    PREF_TITLEBAR,
+    PREF_TITLEBAR_SHOW,
+    PREF_TITLEBAR_GOODBYE,
     PREF_FLASH,
     PREF_INTYPE,
     PREF_HISTORY,
     PREF_MOUSE,
     PREF_OCCUPANTS,
+    PREF_OCCUPANTS_SIZE,
+    PREF_ROSTER,
+    PREF_ROSTER_SIZE,
+    PREF_ROSTER_OFFLINE,
+    PREF_ROSTER_RESOURCE,
+    PREF_ROSTER_BY,
     PREF_MUC_PRIVILEGES,
+    PREF_PRESENCE,
+    PREF_WRAP,
+    PREF_TIME,
     PREF_STATUSES,
     PREF_STATUSES_CONSOLE,
     PREF_STATUSES_CHAT,
@@ -81,11 +93,15 @@ typedef enum {
     PREF_AUTOAWAY_MODE,
     PREF_AUTOAWAY_MESSAGE,
     PREF_CONNECT_ACCOUNT,
+    PREF_DEFAULT_ACCOUNT,
     PREF_LOG_ROTATE,
     PREF_LOG_SHARED,
     PREF_OTR_LOG,
     PREF_OTR_WARN,
-    PREF_OTR_POLICY
+    PREF_OTR_POLICY,
+    PREF_RESOURCE_TITLE,
+    PREF_RESOURCE_MESSAGE,
+    PREF_INPBLOCK_DYNAMIC
 } preference_t;
 
 typedef struct prof_alias_t {
@@ -98,7 +114,7 @@ void prefs_close(void);
 
 char * prefs_find_login(char *prefix);
 void prefs_reset_login_search(void);
-char * prefs_autocomplete_boolean_choice(char *prefix);
+char * prefs_autocomplete_boolean_choice(const char * const prefix);
 void prefs_reset_boolean_choice(void);
 
 gint prefs_get_gone(void);
@@ -114,6 +130,13 @@ void prefs_set_reconnect(gint value);
 gint prefs_get_reconnect(void);
 void prefs_set_autoping(gint value);
 gint prefs_get_autoping(void);
+gint prefs_get_inpblock(void);
+void prefs_set_inpblock(gint value);
+
+void prefs_set_occupants_size(gint value);
+gint prefs_get_occupants_size(void);
+void prefs_set_roster_size(gint value);
+gint prefs_get_roster_size(void);
 
 gint prefs_get_autoaway_time(void);
 void prefs_set_autoaway_time(gint value);

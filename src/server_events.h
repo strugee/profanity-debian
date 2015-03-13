@@ -1,7 +1,7 @@
 /*
  * server_events.h
  *
- * Copyright (C) 2012 - 2014 James Booth <boothj5@gmail.com>
+ * Copyright (C) 2012 - 2015 James Booth <boothj5@gmail.com>
  *
  * This file is part of Profanity.
  *
@@ -69,11 +69,15 @@ void handle_room_role_list(const char * const from, const char * const role, GSL
 void handle_room_role_set_error(const char * const room, const char * const nick, const char * const role,
     const char * const error);
 void handle_room_kick_result_error(const char * const room, const char * const nick, const char * const error);
-void handle_incoming_message(char *from, char *message, gboolean priv);
-void handle_delayed_message(char *from, char *message, GTimeVal tv_stamp,
-    gboolean priv);
-void handle_typing(char *from);
-void handle_gone(const char * const from);
+void handle_incoming_message(char *barejid, char *resource, char *message);
+void handle_incoming_private_message(char *fulljid, char *message);
+void handle_delayed_message(char *fulljid, char *message, GTimeVal tv_stamp);
+void handle_delayed_private_message(char *fulljid, char *message, GTimeVal tv_stamp);
+void handle_typing(char *barejid, char *resource);
+void handle_paused(char *barejid, char *resource);
+void handle_inactive(char *barejid, char *resource);
+void handle_activity(char *barejid, char *resource, gboolean send_states);
+void handle_gone(const char * const barejid, const char * const resource);
 void handle_subscription(const char *from, jabber_subscr_t type);
 void handle_contact_offline(char *contact, char *resource, char *status);
 void handle_contact_online(char *contact, Resource *resource,
@@ -114,5 +118,8 @@ void handle_muc_self_online(const char * const room, const char * const nick, gb
 void handle_muc_occupant_online(const char * const room, const char * const nick, const char * const jid,
     const char * const role, const char * const affiliation, const char * const actor, const char * const reason,
     const char * const show_str, const char * const status_str);
+void handle_roster_update(const char * const barejid, const char * const name,
+    GSList *groups, const char * const subscription, gboolean pending_out);
+void handle_roster_received(void);
 
 #endif
