@@ -41,12 +41,6 @@
 #include <glib.h>
 #include <glib/gstdio.h>
 
-#ifdef HAVE_NCURSESW_NCURSES_H
-#include <ncursesw/ncurses.h>
-#elif HAVE_NCURSES_H
-#include <ncurses.h>
-#endif
-
 #include "common.h"
 #include "log.h"
 #include "preferences.h"
@@ -61,6 +55,7 @@
 #define PREF_GROUP_CONNECTION "connection"
 #define PREF_GROUP_ALIAS "alias"
 #define PREF_GROUP_OTR "otr"
+#define PREF_GROUP_PGP "pgp"
 
 #define INPBLOCK_DEFAULT 1000
 
@@ -81,8 +76,6 @@ void
 prefs_load(void)
 {
     GError *err;
-
-    log_info("Loading preferences");
     prefs_loc = _get_preferences_file();
 
     if (g_file_test(prefs_loc, G_FILE_TEST_EXISTS)) {
@@ -95,29 +88,43 @@ prefs_load(void)
 
     err = NULL;
     log_maxsize = g_key_file_get_integer(prefs, PREF_GROUP_LOGGING, "maxsize", &err);
-    if (err != NULL) {
+    if (err) {
         log_maxsize = 0;
         g_error_free(err);
     }
 
-    // move pre 0.4.6 OTR warn preferences to [ui] group
+    // move pre 0.4.7 otr.warn to enc.warn
     err = NULL;
-    gboolean otr_warn = g_key_file_get_boolean(prefs, PREF_GROUP_OTR, "warn", &err);
+    gboolean otr_warn = g_key_file_get_boolean(prefs, PREF_GROUP_UI, "otr.warn", &err);
     if (err == NULL) {
-        g_key_file_set_boolean(prefs, PREF_GROUP_UI, _get_key(PREF_OTR_WARN), otr_warn);
-        g_key_file_remove_key(prefs, PREF_GROUP_OTR, "warn", NULL);
+        g_key_file_set_boolean(prefs, PREF_GROUP_UI, _get_key(PREF_ENC_WARN), otr_warn);
+        g_key_file_remove_key(prefs, PREF_GROUP_UI, "otr.warn", NULL);
     } else {
         g_error_free(err);
     }
 
-    // move pre 0.4.6 titlebar preference
-    err = NULL;
-    gchar *old_titlebar = g_key_file_get_string(prefs, PREF_GROUP_UI, "titlebar", &err);
-    if (err == NULL) {
-        g_key_file_set_string(prefs, PREF_GROUP_UI, _get_key(PREF_TITLEBAR_SHOW), old_titlebar);
-        g_key_file_remove_key(prefs, PREF_GROUP_UI, "titlebar", NULL);
-    } else {
-        g_error_free(err);
+    // migrate pre 0.4.7 time settings format
+    if (g_key_file_has_key(prefs, PREF_GROUP_UI, "time", NULL)) {
+        char *time = g_key_file_get_string(prefs, PREF_GROUP_UI, "time", NULL);
+        if (g_strcmp0(time, "minutes") == 0) {
+            g_key_file_set_string(prefs, PREF_GROUP_UI, "time", "%H:%M");
+        } else if (g_strcmp0(time, "seconds") == 0) {
+            g_key_file_set_string(prefs, PREF_GROUP_UI, "time", "%H:%M:%S");
+        } else if (g_strcmp0(time, "off") == 0) {
+            g_key_file_set_string(prefs, PREF_GROUP_UI, "time", "");
+        }
+        prefs_free_string(time);
+    }
+    if (g_key_file_has_key(prefs, PREF_GROUP_UI, "time.statusbar", NULL)) {
+        char *time = g_key_file_get_string(prefs, PREF_GROUP_UI, "time.statusbar", NULL);
+        if (g_strcmp0(time, "minutes") == 0) {
+            g_key_file_set_string(prefs, PREF_GROUP_UI, "time.statusbar", "%H:%M");
+        } else if (g_strcmp0(time, "seconds") == 0) {
+            g_key_file_set_string(prefs, PREF_GROUP_UI, "time.statusbar", "%H:%M:%S");
+        } else if (g_strcmp0(time, "off") == 0) {
+            g_key_file_set_string(prefs, PREF_GROUP_UI, "time.statusbar", "");
+        }
+        prefs_free_string(time);
     }
 
     _save_prefs();
@@ -180,8 +187,8 @@ prefs_get_string(preference_t pref)
     char *result = g_key_file_get_string(prefs, group, key, NULL);
 
     if (result == NULL) {
-        if (def != NULL) {
-            return strdup(def);
+        if (def) {
+            return g_strdup(def);
         } else {
             return NULL;
         }
@@ -193,8 +200,8 @@ prefs_get_string(preference_t pref)
 void
 prefs_free_string(char *pref)
 {
-    if (pref != NULL) {
-        free(pref);
+    if (pref) {
+        g_free(pref);
     }
     pref = NULL;
 }
@@ -298,7 +305,11 @@ prefs_set_reconnect(gint value)
 gint
 prefs_get_autoping(void)
 {
-    return g_key_file_get_integer(prefs, PREF_GROUP_CONNECTION, "autoping", NULL);
+    if (!g_key_file_has_key(prefs, PREF_GROUP_CONNECTION, "autoping", NULL)) {
+        return 60;
+    } else {
+        return g_key_file_get_integer(prefs, PREF_GROUP_CONNECTION, "autoping", NULL);
+    }
 }
 
 void
@@ -365,6 +376,60 @@ prefs_get_roster_size(void)
     }
 }
 
+char
+prefs_get_otr_char(void)
+{
+    char result = '~';
+
+    char *resultstr = g_key_file_get_string(prefs, PREF_GROUP_OTR, "otr.char", NULL);
+    if (!resultstr) {
+        result =  '~';
+    } else {
+        result = resultstr[0];
+    }
+    free(resultstr);
+
+    return result;
+}
+
+void
+prefs_set_otr_char(char ch)
+{
+    char str[2];
+    str[0] = ch;
+    str[1] = '\0';
+
+    g_key_file_set_string(prefs, PREF_GROUP_OTR, "otr.char", str);
+    _save_prefs();
+}
+
+char
+prefs_get_pgp_char(void)
+{
+    char result = '~';
+
+    char *resultstr = g_key_file_get_string(prefs, PREF_GROUP_PGP, "pgp.char", NULL);
+    if (!resultstr) {
+        result =  '~';
+    } else {
+        result = resultstr[0];
+    }
+    free(resultstr);
+
+    return result;
+}
+
+void
+prefs_set_pgp_char(char ch)
+{
+    char str[2];
+    str[0] = ch;
+    str[1] = '\0';
+
+    g_key_file_set_string(prefs, PREF_GROUP_PGP, "pgp.char", str);
+    _save_prefs();
+}
+
 gboolean
 prefs_add_alias(const char * const name, const char * const value)
 {
@@ -419,7 +484,7 @@ prefs_get_aliases(void)
             char *name = keys[i];
             char *value = g_key_file_get_string(prefs, PREF_GROUP_ALIAS, name, NULL);
 
-            if (value != NULL) {
+            if (value) {
                 ProfAlias *alias = malloc(sizeof(struct prof_alias_t));
                 alias->name = strdup(name);
                 alias->value = strdup(value);
@@ -497,8 +562,8 @@ _get_group(preference_t pref)
         case PREF_FLASH:
         case PREF_INTYPE:
         case PREF_HISTORY:
-        case PREF_MOUSE:
         case PREF_OCCUPANTS:
+        case PREF_OCCUPANTS_JID:
         case PREF_STATUSES:
         case PREF_STATUSES_CONSOLE:
         case PREF_STATUSES_CHAT:
@@ -506,14 +571,17 @@ _get_group(preference_t pref)
         case PREF_MUC_PRIVILEGES:
         case PREF_PRESENCE:
         case PREF_WRAP:
+        case PREF_WINS_AUTO_TIDY:
         case PREF_TIME:
+        case PREF_TIME_STATUSBAR:
         case PREF_ROSTER:
         case PREF_ROSTER_OFFLINE:
         case PREF_ROSTER_RESOURCE:
+        case PREF_ROSTER_EMPTY:
         case PREF_ROSTER_BY:
         case PREF_RESOURCE_TITLE:
         case PREF_RESOURCE_MESSAGE:
-        case PREF_OTR_WARN:
+        case PREF_ENC_WARN:
         case PREF_INPBLOCK_DYNAMIC:
             return PREF_GROUP_UI;
         case PREF_STATES:
@@ -541,10 +609,15 @@ _get_group(preference_t pref)
             return PREF_GROUP_PRESENCE;
         case PREF_CONNECT_ACCOUNT:
         case PREF_DEFAULT_ACCOUNT:
+        case PREF_CARBONS:
+        case PREF_RECEIPTS_SEND:
+        case PREF_RECEIPTS_REQUEST:
             return PREF_GROUP_CONNECTION;
         case PREF_OTR_LOG:
         case PREF_OTR_POLICY:
             return PREF_GROUP_OTR;
+        case PREF_PGP_LOG:
+            return PREF_GROUP_PGP;
         default:
             return NULL;
     }
@@ -575,10 +648,16 @@ _get_key(preference_t pref)
             return "intype";
         case PREF_HISTORY:
             return "history";
-        case PREF_MOUSE:
-            return "mouse";
+        case PREF_CARBONS:
+            return "carbons";
+        case PREF_RECEIPTS_SEND:
+            return "receipts.send";
+        case PREF_RECEIPTS_REQUEST:
+            return "receipts.request";
         case PREF_OCCUPANTS:
             return "occupants";
+        case PREF_OCCUPANTS_JID:
+            return "occupants.jid";
         case PREF_MUC_PRIVILEGES:
             return "privileges";
         case PREF_STATUSES:
@@ -629,8 +708,6 @@ _get_key(preference_t pref)
             return "defaccount";
         case PREF_OTR_LOG:
             return "log";
-        case PREF_OTR_WARN:
-            return "otr.warn";
         case PREF_OTR_POLICY:
             return "policy";
         case PREF_LOG_ROTATE:
@@ -641,14 +718,20 @@ _get_key(preference_t pref)
             return "presence";
         case PREF_WRAP:
             return "wrap";
+        case PREF_WINS_AUTO_TIDY:
+            return "wins.autotidy";
         case PREF_TIME:
             return "time";
+        case PREF_TIME_STATUSBAR:
+            return "time.statusbar";
         case PREF_ROSTER:
             return "roster";
         case PREF_ROSTER_OFFLINE:
             return "roster.offline";
         case PREF_ROSTER_RESOURCE:
             return "roster.resource";
+        case PREF_ROSTER_EMPTY:
+            return "roster.empty";
         case PREF_ROSTER_BY:
             return "roster.by";
         case PREF_RESOURCE_TITLE:
@@ -657,6 +740,10 @@ _get_key(preference_t pref)
             return "resource.message";
         case PREF_INPBLOCK_DYNAMIC:
             return "inpblock.dynamic";
+        case PREF_ENC_WARN:
+            return "enc.warn";
+        case PREF_PGP_LOG:
+            return "log";
         default:
             return NULL;
     }
@@ -669,7 +756,7 @@ _get_default_boolean(preference_t pref)
 {
     switch (pref)
     {
-        case PREF_OTR_WARN:
+        case PREF_ENC_WARN:
         case PREF_AUTOAWAY_CHECK:
         case PREF_LOG_ROTATE:
         case PREF_LOG_SHARED:
@@ -685,12 +772,14 @@ _get_default_boolean(preference_t pref)
         case PREF_MUC_PRIVILEGES:
         case PREF_PRESENCE:
         case PREF_WRAP:
+        case PREF_WINS_AUTO_TIDY:
         case PREF_INPBLOCK_DYNAMIC:
         case PREF_RESOURCE_TITLE:
         case PREF_RESOURCE_MESSAGE:
         case PREF_ROSTER:
         case PREF_ROSTER_OFFLINE:
         case PREF_ROSTER_RESOURCE:
+        case PREF_ROSTER_EMPTY:
             return TRUE;
         default:
             return FALSE;
@@ -705,6 +794,7 @@ _get_default_string(preference_t pref)
     switch (pref)
     {
         case PREF_AUTOAWAY_MODE:
+            return "off";
         case PREF_NOTIFY_ROOM:
             return "on";
         case PREF_OTR_LOG:
@@ -718,7 +808,11 @@ _get_default_string(preference_t pref)
         case PREF_ROSTER_BY:
             return "presence";
         case PREF_TIME:
-            return "seconds";
+            return "%H:%M:%S";
+        case PREF_TIME_STATUSBAR:
+            return "%H:%M";
+        case PREF_PGP_LOG:
+            return "redact";
         default:
             return NULL;
     }

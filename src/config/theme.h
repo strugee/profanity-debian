@@ -38,11 +38,6 @@
 #include "config.h"
 
 #include <glib.h>
-#ifdef HAVE_NCURSESW_NCURSES_H
-#include <ncursesw/ncurses.h>
-#elif HAVE_NCURSES_H
-#include <ncurses.h>
-#endif
 
 typedef enum {
     THEME_TEXT,
@@ -90,6 +85,7 @@ typedef enum {
     THEME_OTR_UNTRUSTED,
     THEME_OCCUPANTS_HEADER,
     THEME_ROSTER_HEADER,
+    THEME_RECEIPT_SENT,
     THEME_NONE,
     THEME_WHITE,
     THEME_WHITE_BOLD,

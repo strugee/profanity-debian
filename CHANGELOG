@@ -1,3 +1,19 @@
+0.4.7
+=====
+
+- GNU Readline
+- OpenPGP support
+- Message Carbons (xep-0280)
+- Message Delivery Receipts (xep-0184)
+- MUC Mediated Invitation support
+- Configurable time formatting
+- Option to show JIDs in roster
+- Option to hide empty groups in roster
+- Generate UUID for unnamed new MUC rooms
+- Themable UI preference to indicate OTR and PGP messages
+- Reformatted help
+- devel: Added functional tests using libexpect and libstabber
+
 0.4.6
 =====
 

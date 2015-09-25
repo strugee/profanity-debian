@@ -40,6 +40,7 @@
 #include "contact.h"
 #include "jid.h"
 #include "tools/autocomplete.h"
+#include "ui/win_types.h"
 
 typedef enum {
     MUC_ROLE_NONE,
@@ -56,8 +57,15 @@ typedef enum {
     MUC_AFFILIATION_OWNER
 } muc_affiliation_t;
 
+typedef enum {
+    MUC_MEMBER_TYPE_UNKNOWN,
+    MUC_MEMBER_TYPE_PUBLIC,
+    MUC_MEMBER_TYPE_MEMBERS_ONLY
+} muc_member_type_t;
+
 typedef struct _muc_occupant_t {
     char *nick;
+    gchar *nick_collate_key;
     char *jid;
     muc_role_t role;
     muc_affiliation_t affiliation;
@@ -75,6 +83,8 @@ gboolean muc_active(const char * const room);
 gboolean muc_autojoin(const char * const room);
 
 GList* muc_rooms(void);
+
+void muc_set_features(const char * const room, GSList *features);
 
 char* muc_nick(const char * const room);
 char* muc_password(const char * const room);
@@ -108,7 +118,7 @@ GSList * muc_occupants_by_affiliation(const char * const room, muc_affiliation_t
 void muc_occupant_nick_change_start(const char * const room, const char * const new_nick, const char * const old_nick);
 char* muc_roster_nick_change_complete(const char * const room, const char * const nick);
 
-void muc_invites_add(const char * const room);
+void muc_invites_add(const char * const room, const char * const password);
 void muc_invites_remove(const char * const room);
 gint muc_invites_count(void);
 GSList* muc_invites(void);
@@ -116,6 +126,7 @@ gboolean muc_invites_contain(const char * const room);
 void muc_invites_reset_ac(void);
 char* muc_invites_find(const char * const search_str);
 void muc_invites_clear(void);
+char* muc_invite_password(const char * const room);
 
 void muc_set_subject(const char * const room, const char * const subject);
 char* muc_subject(const char * const room);
@@ -123,7 +134,7 @@ char* muc_subject(const char * const room);
 void muc_pending_broadcasts_add(const char * const room, const char * const message);
 GList * muc_pending_broadcasts(const char * const room);
 
-char* muc_autocomplete(const char * const input);
+char* muc_autocomplete(ProfWin *window, const char * const input);
 void muc_autocomplete_reset(const char * const room);
 
 gboolean muc_requires_config(const char * const room);
@@ -133,5 +144,7 @@ void muc_set_role(const char * const room, const char * const role);
 void muc_set_affiliation(const char * const room, const char * const affiliation);
 char *muc_role_str(const char * const room);
 char *muc_affiliation_str(const char * const room);
+
+muc_member_type_t muc_member_type(const char * const room);
 
 #endif

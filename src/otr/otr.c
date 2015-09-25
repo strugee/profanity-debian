@@ -110,7 +110,8 @@ static void
 cb_inject_message(void *opdata, const char *accountname,
     const char *protocol, const char *recipient, const char *message)
 {
-    message_send_chat(recipient, message);
+    char *id = message_send_chat_otr(recipient, message);
+    free(id);
 }
 
 static void
@@ -163,6 +164,8 @@ otr_init(void)
     log_info("Initialising OTR");
     OTRL_INIT;
 
+    jid = NULL;
+
     ops.policy = cb_policy;
     ops.is_logged_in = cb_is_logged_in;
     ops.inject_message = cb_inject_message;
@@ -179,8 +182,9 @@ otr_init(void)
 void
 otr_shutdown(void)
 {
-    if (jid != NULL) {
+    if (jid) {
         free(jid);
+        jid = NULL;
     }
 }
 
@@ -193,7 +197,7 @@ otr_poll(void)
 void
 otr_on_connect(ProfAccount *account)
 {
-    if (jid != NULL) {
+    if (jid) {
         free(jid);
     }
     jid = strdup(account->jid);
@@ -269,6 +273,88 @@ otr_on_connect(ProfAccount *account)
     return;
 }
 
+char*
+otr_on_message_recv(const char * const barejid, const char * const resource, const char * const message, gboolean *decrypted)
+{
+    prof_otrpolicy_t policy = otr_get_policy(barejid);
+    char *whitespace_base = strstr(message, OTRL_MESSAGE_TAG_BASE);
+
+    //check for OTR whitespace (opportunistic or always)
+    if (policy == PROF_OTRPOLICY_OPPORTUNISTIC || policy == PROF_OTRPOLICY_ALWAYS) {
+        if (whitespace_base) {
+            if (strstr(message, OTRL_MESSAGE_TAG_V2) || strstr(message, OTRL_MESSAGE_TAG_V1)) {
+                // Remove whitespace pattern for proper display in UI
+                // Handle both BASE+TAGV1/2(16+8) and BASE+TAGV1+TAGV2(16+8+8)
+                int tag_length = 24;
+                if (strstr(message, OTRL_MESSAGE_TAG_V2) && strstr(message, OTRL_MESSAGE_TAG_V1)) {
+                    tag_length = 32;
+                }
+                memmove(whitespace_base, whitespace_base+tag_length, tag_length);
+                char *otr_query_message = otr_start_query();
+                cons_show("OTR Whitespace pattern detected. Attempting to start OTR session...");
+                char *id = message_send_chat_otr(barejid, otr_query_message);
+                free(id);
+            }
+        }
+    }
+
+    char *newmessage = otr_decrypt_message(barejid, message, decrypted);
+    if (!newmessage) { // internal OTR message
+        return NULL;
+    }
+
+    if (policy == PROF_OTRPOLICY_ALWAYS && *decrypted == FALSE && !whitespace_base) {
+        char *otr_query_message = otr_start_query();
+        cons_show("Attempting to start OTR session...");
+        char *id = message_send_chat_otr(barejid, otr_query_message);
+        free(id);
+    }
+
+    return newmessage;
+}
+
+gboolean
+otr_on_message_send(ProfChatWin *chatwin, const char * const message)
+{
+    char *id = NULL;
+    prof_otrpolicy_t policy = otr_get_policy(chatwin->barejid);
+
+    // Send encrypted message
+    if (otr_is_secure(chatwin->barejid)) {
+        char *encrypted = otr_encrypt_message(chatwin->barejid, message);
+        if (encrypted) {
+            id = message_send_chat_otr(chatwin->barejid, encrypted);
+            chat_log_otr_msg_out(chatwin->barejid, message);
+            ui_outgoing_chat_msg(chatwin, message, id, PROF_MSG_OTR);
+            otr_free_message(encrypted);
+            free(id);
+            return TRUE;
+        } else {
+            ui_win_error_line((ProfWin*)chatwin, "Failed to encrypt and send message.");
+            return TRUE;
+        }
+    }
+
+    // show error if not secure and policy always
+    if (policy == PROF_OTRPOLICY_ALWAYS) {
+        ui_win_error_line((ProfWin*)chatwin, "Failed to send message. OTR policy set to: always");
+        return TRUE;
+    }
+
+    // tag and send for policy opportunistic
+    if (policy == PROF_OTRPOLICY_OPPORTUNISTIC) {
+        char *otr_tagged_msg = otr_tag_message(message);
+        id = message_send_chat_otr(chatwin->barejid, otr_tagged_msg);
+        ui_outgoing_chat_msg(chatwin, message, id, PROF_MSG_PLAIN);
+        chat_log_msg_out(chatwin->barejid, message);
+        free(otr_tagged_msg);
+        free(id);
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
 void
 otr_keygen(ProfAccount *account)
 {
@@ -277,7 +363,7 @@ otr_keygen(ProfAccount *account)
         return;
     }
 
-    if (jid != NULL) {
+    if (jid) {
         free(jid);
     }
     jid = strdup(account->jid);
@@ -365,6 +451,18 @@ otr_key_loaded(void)
     return data_loaded;
 }
 
+char *
+otr_tag_message(const char * const msg)
+{
+    GString *otr_message = g_string_new(msg);
+    g_string_append(otr_message, OTRL_MESSAGE_TAG_BASE);
+    g_string_append(otr_message, OTRL_MESSAGE_TAG_V2);
+    char *result = otr_message->str;
+    g_string_free(otr_message, FALSE);
+
+    return result;
+}
+
 gboolean
 otr_is_secure(const char * const recipient)
 {
@@ -421,7 +519,7 @@ otr_trust(const char * const recipient)
     }
 
     if (context->active_fingerprint) {
-        if (context->active_fingerprint->trust != NULL) {
+        if (context->active_fingerprint->trust) {
             free(context->active_fingerprint->trust);
         }
         context->active_fingerprint->trust = strdup("trusted");
@@ -445,7 +543,7 @@ otr_untrust(const char * const recipient)
     }
 
     if (context->active_fingerprint) {
-        if (context->active_fingerprint->trust != NULL) {
+        if (context->active_fingerprint->trust) {
             free(context->active_fingerprint->trust);
         }
         context->active_fingerprint->trust = NULL;
@@ -534,7 +632,7 @@ otr_get_their_fingerprint(const char * const recipient)
 {
     ConnContext *context = otrlib_context_find(user_state, recipient, jid);
 
-    if (context != NULL) {
+    if (context) {
         Fingerprint *fingerprint = context->active_fingerprint;
         char readable[45];
         otrl_privkey_hash_to_human(readable, fingerprint->fingerprint);
@@ -547,7 +645,8 @@ otr_get_their_fingerprint(const char * const recipient)
 prof_otrpolicy_t
 otr_get_policy(const char * const recipient)
 {
-    ProfAccount *account = accounts_get_account(jabber_get_account_name());
+    char *account_name = jabber_get_account_name();
+    ProfAccount *account = accounts_get_account(account_name);
     // check contact specific setting
     if (g_list_find_custom(account->otr_manual, recipient, (GCompareFunc)g_strcmp0)) {
         account_free(account);
@@ -563,7 +662,7 @@ otr_get_policy(const char * const recipient)
     }
 
     // check default account setting
-    if (account->otr_policy != NULL) {
+    if (account->otr_policy) {
         prof_otrpolicy_t result;
         if (g_strcmp0(account->otr_policy, "manual") == 0) {
             result = PROF_OTRPOLICY_MANUAL;
@@ -609,13 +708,21 @@ otr_encrypt_message(const char * const to, const char * const message)
     }
 }
 
-char *
-otr_decrypt_message(const char * const from, const char * const message, gboolean *was_decrypted)
+static void
+_otr_tlv_free(OtrlTLV *tlvs)
 {
-    char *decrypted = NULL;
+    if (tlvs) {
+        otrl_tlv_free(tlvs);
+    }
+}
+
+char *
+otr_decrypt_message(const char * const from, const char * const message, gboolean *decrypted)
+{
+    char *newmessage = NULL;
     OtrlTLV *tlvs = NULL;
 
-    int result = otrlib_decrypt_message(user_state, &ops, jid, from, message, &decrypted, &tlvs);
+    int result = otrlib_decrypt_message(user_state, &ops, jid, from, message, &newmessage, &tlvs);
 
     // internal libotr message
     if (result == 1) {
@@ -624,8 +731,7 @@ otr_decrypt_message(const char * const from, const char * const message, gboolea
         // common tlv handling
         OtrlTLV *tlv = otrl_tlv_find(tlvs, OTRL_TLV_DISCONNECTED);
         if (tlv) {
-
-            if (context != NULL) {
+            if (context) {
                 otrl_context_force_plaintext(context);
                 ui_gone_insecure(from);
             }
@@ -633,17 +739,22 @@ otr_decrypt_message(const char * const from, const char * const message, gboolea
 
         // library version specific tlv handling
         otrlib_handle_tlvs(user_state, &ops, context, tlvs, smp_initiators);
+        _otr_tlv_free(tlvs);
 
         return NULL;
 
-    // message was decrypted, return to user
-    } else if (decrypted != NULL) {
-        *was_decrypted = TRUE;
-        return decrypted;
+    // message was processed, return to user
+    } else if (newmessage) {
+        _otr_tlv_free(tlvs);
+        if (g_str_has_prefix(message, "?OTR:")) {
+            *decrypted = TRUE;
+        }
+        return newmessage;
 
     // normal non OTR message
     } else {
-        *was_decrypted = FALSE;
+        _otr_tlv_free(tlvs);
+        *decrypted = FALSE;
         return strdup(message);
     }
 }

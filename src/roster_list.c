@@ -42,6 +42,7 @@
 #include "contact.h"
 #include "jid.h"
 #include "tools/autocomplete.h"
+#include "config/preferences.h"
 
 // nicknames
 static Autocomplete name_ac;
@@ -116,6 +117,33 @@ roster_get_contact(const char * const barejid)
     return contact;
 }
 
+char *
+roster_get_msg_display_name(const char * const barejid, const char * const resource)
+{
+    GString *result = g_string_new("");
+
+    PContact contact = roster_get_contact(barejid);
+    if (contact) {
+        if (p_contact_name(contact)) {
+            g_string_append(result, p_contact_name(contact));
+        } else {
+            g_string_append(result, barejid);
+        }
+    } else {
+        g_string_append(result, barejid);
+    }
+
+    if (resource && prefs_get_boolean(PREF_RESOURCE_MESSAGE)) {
+        g_string_append(result, "/");
+        g_string_append(result, resource);
+    }
+
+    char *result_str = result->str;
+    g_string_free(result, FALSE);
+
+    return result_str;
+}
+
 gboolean
 roster_contact_offline(const char * const barejid,
     const char * const resource, const char * const status)
@@ -178,7 +206,7 @@ roster_change_name(PContact contact, const char * const new_name)
     const char *current_name = NULL;
     const char *barejid = p_contact_barejid(contact);
 
-    if (p_contact_name(contact) != NULL) {
+    if (p_contact_name(contact)) {
         current_name = strdup(p_contact_name(contact));
     }
 
@@ -195,9 +223,9 @@ roster_remove(const char * const name, const char * const barejid)
 
     // remove each fulljid
     PContact contact = roster_get_contact(barejid);
-    if (contact != NULL) {
+    if (contact) {
         GList *resources = p_contact_get_available_resources(contact);
-        while (resources != NULL) {
+        while (resources) {
             GString *fulljid = g_string_new(strdup(barejid));
             g_string_append(fulljid, "/");
             g_string_append(fulljid, resources->data);
@@ -224,7 +252,7 @@ roster_update(const char * const barejid, const char * const name,
 
     const char * const new_name = name;
     const char * current_name = NULL;
-    if (p_contact_name(contact) != NULL) {
+    if (p_contact_name(contact)) {
         current_name = strdup(p_contact_name(contact));
     }
 
@@ -233,7 +261,7 @@ roster_update(const char * const barejid, const char * const name,
     _replace_name(current_name, new_name, barejid);
 
     // add groups
-    while (groups != NULL) {
+    while (groups) {
         autocomplete_add(groups_ac, groups->data);
         groups = g_slist_next(groups);
     }
@@ -244,7 +272,7 @@ roster_add(const char * const barejid, const char * const name, GSList *groups,
     const char * const subscription, gboolean pending_out)
 {
     PContact contact = roster_get_contact(barejid);
-    if (contact != NULL) {
+    if (contact) {
         return FALSE;
     }
 
@@ -252,7 +280,7 @@ roster_add(const char * const barejid, const char * const name, GSList *groups,
         pending_out);
 
     // add groups
-    while (groups != NULL) {
+    while (groups) {
         autocomplete_add(groups_ac, groups->data);
         groups = g_slist_next(groups);
     }
@@ -390,7 +418,7 @@ roster_get_group(const char * const group)
     g_hash_table_iter_init(&iter, contacts);
     while (g_hash_table_iter_next(&iter, &key, &value)) {
         GSList *groups = p_contact_groups(value);
-        while (groups != NULL) {
+        while (groups) {
             if (strcmp(groups->data, group) == 0) {
                 result = g_slist_insert_sorted(result, value, (GCompareFunc)_compare_contacts);
                 break;
@@ -449,12 +477,12 @@ _replace_name(const char * const current_name, const char * const new_name,
     const char * const barejid)
 {
     // current handle exists already
-    if (current_name != NULL) {
+    if (current_name) {
         autocomplete_remove(name_ac, current_name);
         g_hash_table_remove(name_to_barejid, current_name);
         _add_name_and_barejid(new_name, barejid);
     // no current handle
-    } else if (new_name != NULL) {
+    } else if (new_name) {
         autocomplete_remove(name_ac, barejid);
         g_hash_table_remove(name_to_barejid, barejid);
         _add_name_and_barejid(new_name, barejid);
@@ -464,7 +492,7 @@ _replace_name(const char * const current_name, const char * const new_name,
 static void
 _add_name_and_barejid(const char * const name, const char * const barejid)
 {
-    if (name != NULL) {
+    if (name) {
         autocomplete_add(name_ac, name);
         g_hash_table_insert(name_to_barejid, strdup(name), strdup(barejid));
     } else {
@@ -479,24 +507,18 @@ gint _compare_contacts(PContact a, PContact b)
     const char * utf8_str_a = NULL;
     const char * utf8_str_b = NULL;
 
-    if (p_contact_name(a) != NULL) {
-        utf8_str_a = p_contact_name(a);
+    if (p_contact_name_collate_key(a)) {
+        utf8_str_a = p_contact_name_collate_key(a);
     } else {
-        utf8_str_a = p_contact_barejid(a);
+        utf8_str_a = p_contact_barejid_collate_key(a);
     }
-    if (p_contact_name(b) != NULL) {
-        utf8_str_b = p_contact_name(b);
+    if (p_contact_name_collate_key(b)) {
+        utf8_str_b = p_contact_name_collate_key(b);
     } else {
-        utf8_str_b = p_contact_barejid(b);
+        utf8_str_b = p_contact_barejid_collate_key(b);
     }
 
-    gchar *key_a = g_utf8_collate_key(utf8_str_a, -1);
-    gchar *key_b = g_utf8_collate_key(utf8_str_b, -1);
-
-    gint result = g_strcmp0(key_a, key_b);
-
-    g_free(key_a);
-    g_free(key_b);
+    gint result = g_strcmp0(utf8_str_a, utf8_str_b);
 
     return result;
 }
