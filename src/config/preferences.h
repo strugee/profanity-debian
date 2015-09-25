@@ -38,11 +38,6 @@
 #include "config.h"
 
 #include <glib.h>
-#ifdef HAVE_NCURSESW_NCURSES_H
-#include <ncursesw/ncurses.h>
-#elif HAVE_NCURSES_H
-#include <ncurses.h>
-#endif
 
 #define PREFS_MIN_LOG_SIZE 64
 #define PREFS_MAX_LOG_SIZE 1048580
@@ -59,18 +54,24 @@ typedef enum {
     PREF_FLASH,
     PREF_INTYPE,
     PREF_HISTORY,
-    PREF_MOUSE,
+    PREF_CARBONS,
+    PREF_RECEIPTS_SEND,
+    PREF_RECEIPTS_REQUEST,
     PREF_OCCUPANTS,
     PREF_OCCUPANTS_SIZE,
+    PREF_OCCUPANTS_JID,
     PREF_ROSTER,
     PREF_ROSTER_SIZE,
     PREF_ROSTER_OFFLINE,
     PREF_ROSTER_RESOURCE,
+    PREF_ROSTER_EMPTY,
     PREF_ROSTER_BY,
     PREF_MUC_PRIVILEGES,
     PREF_PRESENCE,
     PREF_WRAP,
+    PREF_WINS_AUTO_TIDY,
     PREF_TIME,
+    PREF_TIME_STATUSBAR,
     PREF_STATUSES,
     PREF_STATUSES_CONSOLE,
     PREF_STATUSES_CHAT,
@@ -97,11 +98,12 @@ typedef enum {
     PREF_LOG_ROTATE,
     PREF_LOG_SHARED,
     PREF_OTR_LOG,
-    PREF_OTR_WARN,
     PREF_OTR_POLICY,
     PREF_RESOURCE_TITLE,
     PREF_RESOURCE_MESSAGE,
-    PREF_INPBLOCK_DYNAMIC
+    PREF_INPBLOCK_DYNAMIC,
+    PREF_ENC_WARN,
+    PREF_PGP_LOG
 } preference_t;
 
 typedef struct prof_alias_t {
@@ -140,6 +142,11 @@ gint prefs_get_roster_size(void);
 
 gint prefs_get_autoaway_time(void);
 void prefs_set_autoaway_time(gint value);
+
+char prefs_get_otr_char(void);
+void prefs_set_otr_char(char ch);
+char prefs_get_pgp_char(void);
+void prefs_set_pgp_char(char ch);
 
 void prefs_add_login(const char *jid);
 

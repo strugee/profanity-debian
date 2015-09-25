@@ -36,6 +36,7 @@
 #define COMMON_H
 
 #include <stdio.h>
+#include <wchar.h>
 
 #include <glib.h>
 
@@ -103,7 +104,9 @@ gboolean create_dir(char *name);
 gboolean mkdir_recursive(const char *dir);
 char * str_replace(const char *string, const char *substr,
     const char *replacement);
+gboolean str_contains_str(const char *  const searchstr, const char * const substr);
 int str_contains(const char str[], int size, char ch);
+gboolean strtoi_range(char *str, int *saveptr, int min, int max, char **err_msg);
 int utf8_display_len(const char * const str);
 char * prof_getline(FILE *stream);
 char* release_get_latest(void);
@@ -118,6 +121,7 @@ contact_presence_t contact_presence_from_resource_presence(resource_presence_t r
 
 char * p_sha1_hash(char *str);
 char * create_unique_id(char *prefix);
+void reset_unique_id(void);
 
 int cmp_win_num(gconstpointer a, gconstpointer b);
 int get_next_available_win_num(GList *used);

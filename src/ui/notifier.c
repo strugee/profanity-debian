@@ -48,10 +48,10 @@
 #include "log.h"
 #include "muc.h"
 #include "ui/ui.h"
+#include "window_list.h"
 #include "config/preferences.h"
 
-static void _notify(const char * const message, int timeout,
-    const char * const category);
+static void _notify(const char * const message, int timeout, const char * const category);
 
 static GTimer *remind_timer;
 
@@ -89,7 +89,7 @@ notify_invite(const char * const from, const char * const room,
     g_string_append(message, from);
     g_string_append(message, "\nto: ");
     g_string_append(message, room);
-    if (reason != NULL) {
+    if (reason) {
         g_string_append_printf(message, "\n\"%s\"", reason);
     }
 
@@ -99,17 +99,25 @@ notify_invite(const char * const from, const char * const room,
 }
 
 void
-notify_message(const char * const handle, int win, const char * const text)
+notify_message(ProfWin *window, const char * const name, const char * const text)
 {
-    GString *message = g_string_new("");
-    g_string_append_printf(message, "%s (win %d)", handle, win);
-    if (text != NULL) {
-        g_string_append_printf(message, "\n%s", text);
+    int num = wins_get_num(window);
+    if (num == 10) {
+        num = 0;
     }
 
-    _notify(message->str, 10000, "incoming message");
+    gboolean is_current = wins_is_current(window);
+    if (!is_current || (is_current && prefs_get_boolean(PREF_NOTIFY_MESSAGE_CURRENT)) ) {
+        GString *message = g_string_new("");
+        g_string_append_printf(message, "%s (win %d)", name, num);
 
-    g_string_free(message, TRUE);
+        if (prefs_get_boolean(PREF_NOTIFY_MESSAGE_TEXT) && text) {
+            g_string_append_printf(message, "\n%s", text);
+        }
+
+        _notify(message->str, 10000, "incoming message");
+        g_string_free(message, TRUE);
+    }
 }
 
 void
@@ -117,7 +125,7 @@ notify_room_message(const char * const handle, const char * const room, int win,
 {
     GString *message = g_string_new("");
     g_string_append_printf(message, "%s in %s (win %d)", handle, room, win);
-    if (text != NULL) {
+    if (text) {
         g_string_append_printf(message, "\n%s", text);
     }
 
@@ -274,7 +282,7 @@ _notify(const char * const message, int timeout,
         app_id = "com.googlecode.iterm2";
     }
 
-    if (app_id != NULL) {
+    if (app_id) {
         g_string_append(notify_command, " -sender ");
         g_string_append(notify_command, app_id);
     }

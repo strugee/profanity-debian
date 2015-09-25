@@ -44,7 +44,7 @@
 #include "ui/ui.h"
 #include "ui/titlebar.h"
 #include "ui/inputwin.h"
-#include "ui/windows.h"
+#include "window_list.h"
 #include "ui/window.h"
 #include "roster_list.h"
 #include "chat_session.h"
@@ -58,9 +58,7 @@ static GTimer *typing_elapsed;
 static void _title_bar_draw(void);
 static void _show_self_presence(void);
 static void _show_contact_presence(ProfChatWin *chatwin);
-#ifdef HAVE_LIBOTR
 static void _show_privacy(ProfChatWin *chatwin);
-#endif
 
 void
 create_title_bar(void)
@@ -80,7 +78,7 @@ title_bar_update_virtual(void)
 {
     ProfWin *window = wins_get_current();
     if (window->type != WIN_CONSOLE) {
-        if (typing_elapsed != NULL) {
+        if (typing_elapsed) {
             gdouble seconds = g_timer_elapsed(typing_elapsed, NULL);
 
             if (seconds >= 10) {
@@ -128,7 +126,7 @@ title_bar_set_presence(contact_presence_t presence)
 void
 title_bar_switch(void)
 {
-    if (typing_elapsed != NULL) {
+    if (typing_elapsed) {
         g_timer_destroy(typing_elapsed);
         typing_elapsed = NULL;
         typing = FALSE;
@@ -141,7 +139,7 @@ void
 title_bar_set_typing(gboolean is_typing)
 {
     if (is_typing) {
-        if (typing_elapsed != NULL) {
+        if (typing_elapsed) {
             g_timer_start(typing_elapsed);
         } else {
             typing_elapsed = g_timer_new();
@@ -174,10 +172,7 @@ _title_bar_draw(void)
         ProfChatWin *chatwin = (ProfChatWin*) current;
         assert(chatwin->memcheck == PROFCHATWIN_MEMCHECK);
         _show_contact_presence(chatwin);
-
-#ifdef HAVE_LIBOTR
         _show_privacy(chatwin);
-#endif
 
         if (typing) {
             wprintw(win, " (typing...)");
@@ -246,28 +241,16 @@ _show_self_presence(void)
     wattroff(win, bracket_attrs);
 }
 
-#ifdef HAVE_LIBOTR
 static void
 _show_privacy(ProfChatWin *chatwin)
 {
     int bracket_attrs = theme_attrs(THEME_TITLE_BRACKET);
+    int encrypted_attrs = theme_attrs(THEME_TITLE_ENCRYPTED);
+    int unencrypted_attrs = theme_attrs(THEME_TITLE_UNENCRYPTED);
+    int trusted_attrs = theme_attrs(THEME_TITLE_TRUSTED);
+    int untrusted_attrs = theme_attrs(THEME_TITLE_UNTRUSTED);
 
-    if (!chatwin->is_otr) {
-        if (prefs_get_boolean(PREF_OTR_WARN)) {
-            int unencrypted_attrs = theme_attrs(THEME_TITLE_UNENCRYPTED);
-            wprintw(win, " ");
-            wattron(win, bracket_attrs);
-            wprintw(win, "[");
-            wattroff(win, bracket_attrs);
-            wattron(win, unencrypted_attrs);
-            wprintw(win, "unencrypted");
-            wattroff(win, unencrypted_attrs);
-            wattron(win, bracket_attrs);
-            wprintw(win, "]");
-            wattroff(win, bracket_attrs);
-        }
-    } else {
-        int encrypted_attrs = theme_attrs(THEME_TITLE_ENCRYPTED);
+    if (chatwin->is_otr) {
         wprintw(win, " ");
         wattron(win, bracket_attrs);
         wprintw(win, "[");
@@ -278,8 +261,7 @@ _show_privacy(ProfChatWin *chatwin)
         wattron(win, bracket_attrs);
         wprintw(win, "]");
         wattroff(win, bracket_attrs);
-        if (chatwin->is_trusted) {
-            int trusted_attrs = theme_attrs(THEME_TITLE_TRUSTED);
+        if (chatwin->otr_is_trusted) {
             wprintw(win, " ");
             wattron(win, bracket_attrs);
             wprintw(win, "[");
@@ -291,7 +273,6 @@ _show_privacy(ProfChatWin *chatwin)
             wprintw(win, "]");
             wattroff(win, bracket_attrs);
         } else {
-            int untrusted_attrs = theme_attrs(THEME_TITLE_UNTRUSTED);
             wprintw(win, " ");
             wattron(win, bracket_attrs);
             wprintw(win, "[");
@@ -303,9 +284,41 @@ _show_privacy(ProfChatWin *chatwin)
             wprintw(win, "]");
             wattroff(win, bracket_attrs);
         }
+    } else if (chatwin->pgp_send || chatwin->pgp_recv) {
+        GString *pgpmsg = g_string_new("PGP ");
+        if (chatwin->pgp_send && !chatwin->pgp_recv) {
+            g_string_append(pgpmsg, "send");
+        } else if (!chatwin->pgp_send && chatwin->pgp_recv) {
+            g_string_append(pgpmsg, "recv");
+        } else {
+            g_string_append(pgpmsg, "send/recv");
+        }
+        wprintw(win, " ");
+        wattron(win, bracket_attrs);
+        wprintw(win, "[");
+        wattroff(win, bracket_attrs);
+        wattron(win, encrypted_attrs);
+        wprintw(win, pgpmsg->str);
+        wattroff(win, encrypted_attrs);
+        wattron(win, bracket_attrs);
+        wprintw(win, "]");
+        wattroff(win, bracket_attrs);
+        g_string_free(pgpmsg, TRUE);
+    } else {
+        if (prefs_get_boolean(PREF_ENC_WARN)) {
+            wprintw(win, " ");
+            wattron(win, bracket_attrs);
+            wprintw(win, "[");
+            wattroff(win, bracket_attrs);
+            wattron(win, unencrypted_attrs);
+            wprintw(win, "unencrypted");
+            wattroff(win, unencrypted_attrs);
+            wattron(win, bracket_attrs);
+            wprintw(win, "]");
+            wattroff(win, bracket_attrs);
+        }
     }
 }
-#endif
 
 static void
 _show_contact_presence(ProfChatWin *chatwin)

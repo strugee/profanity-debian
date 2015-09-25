@@ -17,7 +17,7 @@ statusbar=blue
 statusbar.text=bold_white
 statusbar.brackets=white
 statusbar.active=bold_cyan
-statusbar.new=bold_green
+statusbar.new=bold_white
 main.text=white
 main.text.me=cyan
 main.text.them=bold_white
@@ -47,17 +47,19 @@ me=blue
 them=bold_green
 roster.header=bold_yellow
 occupants.header=bold_yellow
+receipt.sent=bold_black
 
 [ui]
 beep=false
 flash=false
 splash=true
 wrap=true
-time=seconds
+time=%d-%m-%y %H:%M
+time.statusbar=%H:%M:%S
 privileges=true
 presence=true
 intype=true
-otr.warn=true
+enc.warn=true
 resource.title=true
 resource.message=true
 statuses.console=all
@@ -65,10 +67,13 @@ statuses.chat=all
 statuses.muc=all
 roster=true
 roster.offline=true
-roster.resource=true
+roster.resource=false
 roster.by=presence
 roster.size=25
+roster.empty=true
 occupants=true
 occupants.size=15
-
-
+occupants.jid=false
+wins.autotidy=true
+otr.char=@
+pgp.char=%
