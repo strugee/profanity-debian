@@ -2,6 +2,12 @@ profanity (0.4.7-1) unstable; urgency=medium
 
   * Imported Upstream version 0.4.7
   * Removed d/patches/add-cflags-linking.patch
+  * d/control:
+    - added libreadline-dev to Build-Deps
+    - added libgpgme11-dev to Build-Deps
+    - removed libcurl4-gnutls-dev from Build-Deps
+  * d/rules:
+    - enabled gpg support
 
  -- Dariusz Dwornikowski <dariusz.dwornikowski@cs.put.poznan.pl>  Sat, 26 Sep 2015 16:47:33 +0200
 
