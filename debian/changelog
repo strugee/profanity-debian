@@ -6,6 +6,7 @@ profanity (0.4.7-1) unstable; urgency=medium
   * d/control:
     - added libreadline-dev to Build-Deps
     - added libgpgme11-dev to Build-Deps
+    - added uuid-dev to Build-Deps
   * d/rules:
     - enabled gpg support
 
