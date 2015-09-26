@@ -1,6 +1,7 @@
 profanity (0.4.7-1) unstable; urgency=medium
 
   * Imported Upstream version 0.4.7
+  * Removed d/patches/add-cflags-linking.patch
 
  -- Dariusz Dwornikowski <dariusz.dwornikowski@cs.put.poznan.pl>  Sat, 26 Sep 2015 16:47:33 +0200
 
