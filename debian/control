@@ -3,6 +3,7 @@ Section: net
 Priority: optional
 Maintainer: Dariusz Dwornikowski <dariusz.dwornikowski@cs.put.poznan.pl>
 Build-Depends:
+ autoconf-archive,
  debhelper (>= 9),
  dh-autoreconf,
  libcaca-dev,
