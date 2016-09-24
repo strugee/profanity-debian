@@ -1,0 +1,53 @@
+Description: Fix minor spelling errors in source
+Author: Jack Henschel <jh@openmailbox.org>
+Forwarded: no
+Last-Update: 2016-09-24
+
+Index: profanity/src/command/cmd_funcs.c
+===================================================================
+--- profanity.orig/src/command/cmd_funcs.c
++++ profanity/src/command/cmd_funcs.c
+@@ -6363,7 +6363,7 @@ cmd_pgp(ProfWin *window, const char *con
+         }
+ 
+         chatwin->pgp_send = TRUE;
+-        ui_current_print_formatted_line('!', 0, "PGP encyption enabled.");
++        ui_current_print_formatted_line('!', 0, "PGP encryption enabled.");
+         return TRUE;
+     }
+ 
+@@ -6386,7 +6386,7 @@ cmd_pgp(ProfWin *window, const char *con
+         }
+ 
+         chatwin->pgp_send = FALSE;
+-        ui_current_print_formatted_line('!', 0, "PGP encyption disabled.");
++        ui_current_print_formatted_line('!', 0, "PGP encryption disabled.");
+         return TRUE;
+     }
+ 
+Index: profanity/src/otr/otrlibv4.c
+===================================================================
+--- profanity.orig/src/otr/otrlibv4.c
++++ profanity/src/otr/otrlibv4.c
+@@ -120,7 +120,7 @@ cb_handle_msg_event(void *opdata, OtrlMe
+             ui_handle_otr_error(context->username, "OTR: Policy requires encryption, but attempting to send an unencrypted message.");
+             break;
+         case OTRL_MSGEVENT_ENCRYPTION_ERROR:
+-             ui_handle_otr_error(context->username, "OTR: Error occured while encrypting a message, message not sent.");
++             ui_handle_otr_error(context->username, "OTR: Error occurred while encrypting a message, message not sent.");
+             break;
+         case OTRL_MSGEVENT_CONNECTION_ENDED:
+             ui_handle_otr_error(context->username, "OTR: Message not sent because contact has ended the private conversation.");
+Index: profanity/src/ui/notifier.c
+===================================================================
+--- profanity.orig/src/ui/notifier.c
++++ profanity/src/ui/notifier.c
+@@ -140,7 +140,7 @@ notify_subscription(const char *const fr
+ {
+     GString *message = g_string_new("Subscription request: \n");
+     g_string_append(message, from);
+-    notify(message->str, 10000, "Incomming message");
++    notify(message->str, 10000, "Incoming message");
+     g_string_free(message, TRUE);
+ }
+ 
