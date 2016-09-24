@@ -6,6 +6,7 @@ profanity (0.5.0-1) UNRELEASED; urgency=medium
     - fixed in upstream
   * Introduce new patch fix-spelling-errors.patch
     - more errors in upstream
+  * Update Standards-Version to 3.9.8
 
  -- Jack Henschel <jh@openmailbox.org>  Thu, 22 Sep 2016 18:25:00 +0200
 
