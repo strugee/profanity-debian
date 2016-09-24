@@ -1,0 +1,13 @@
+TODO for this package:
+* Split profanity into various packages:
+  ** profanity (normal package with X-support)
+  ** profanity-nox (built without X-support)
+  ** profanity-themes (themes for profanity)
+  ** libprofanity (backend library)
+
+* Add Hardening buildflags
+  ** hardening-no-pie
+  ** hardening-no-bindnow
+
+* Check description
+  ** Do GoogleTalk and Facebook still support XMPP?
