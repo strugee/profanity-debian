@@ -1,5 +1,8 @@
 #!/usr/bin/make -f
 
+# Export all Hardening flags
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+
 %:
 	dh $@ --with autoreconf
 
