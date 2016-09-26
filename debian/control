@@ -34,8 +34,8 @@ Description: console based XMPP client
  .
  Profanity's features are:
  .
-  * XMPP chat services, including GoogleTalk and Facebook.
-  * OTR (off the record) message encryption.
+  * XMPP chat services, including GoogleTalk and Slack.
+  * OTR (off the record) and PGP message encryption.
   * Complex roster management with grouping.
   * Desktop notifications via libnotify.
   * Flexible resource and priority settings.
