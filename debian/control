@@ -42,3 +42,20 @@ Description: console based XMPP client
   * Support for colorthemes.
   * Support for plugins in C, Python, Ruby, and Lua.
   * MUC (multi user chatroom) support.
+
+Package: profanity-themes
+Architecture: all
+Depends: ${misc:Depends}, profanity
+Description: themes for profanity
+ This package contains various theme files for
+ profanty, the console based XMPP client.
+ Currently, profanity-themes ships 18 different themes.
+
+Package: libprofanity
+Architecture: any
+Depends: ${misc:Depends}, ${shlibs:Depends}
+Description: C plugin library for Profanity
+ This package contains profanity's library for C plugins. It is
+ required for running (C) plugins with profanity.
+ lib-profanity ships both the library as well as the
+ development headers.
