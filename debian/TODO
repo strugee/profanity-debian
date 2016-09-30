@@ -1,6 +1,10 @@
 TODO for this package:
-* Split profanity into various packages:
-  ** profanity (normal package with X-support)
-  ** profanity-nox (built without X-support)
-  ** profanity-themes (themes for profanity)
-  ** libprofanity (backend library)
+* Create different flavors of profanity
+  - profanity (default package with X-support)
+  - profanity-nox (without any X-dependencies)
+
+* profanity and libprofanity currently link against ALL
+  libraries (ALWAYS, required or not)
+
+* the shared-object library libprofanity should have a versioned
+  name (e.g. libprofanity-0.5.0.so)
