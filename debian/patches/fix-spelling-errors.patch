@@ -1,7 +1,7 @@
 Description: Fix minor spelling errors in source
 Author: Jack Henschel <jh@openmailbox.org>
-Forwarded: no
-Last-Update: 2016-09-24
+Forwarded: https://github.com/boothj5/profanity/pull/863
+Last-Update: 2016-09-30
 
 Index: profanity/src/command/cmd_funcs.c
 ===================================================================
