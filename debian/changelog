@@ -2,13 +2,14 @@ profanity (0.5.0-0.1) UNRELEASED; urgency=medium
 
   * Imported Upstream version 0.5.0:
     - requires new version of libstrophe (>= 0.9.0)
-  * Remove fix_spelling_error.patch
-    - fixed in upstream
-  * Introduce new patch fix-spelling-errors.patch
-    - more errors in upstream
+  * Enable GTK status bar icons, Xscreensaver timeout
+    and C-plugin support
+  * Patches
+     - removed (obsolete) fix_spelling_error.patch
+     - introduced new fix-spelling-errors.patch
   * Update Standards-Version to 3.9.8
 
- -- Jack Henschel <jh@openmailbox.org>  Thu, 22 Sep 2016 18:25:00 +0200
+ -- Jack Henschel <jh@openmailbox.org>  Sat, 07 Jan 2017 15:25:00 +0100
 
 profanity (0.4.7-1) unstable; urgency=medium
 
