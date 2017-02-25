@@ -1,10 +1,16 @@
-Author: Dariusz Dwornikowski <dariusz.dwornikowski@cs.put.poznan.pl> 
+From: Dariusz Dwornikowski <dariusz.dwornikowski@cs.put.poznan.pl>
+Date: Sat, 25 Feb 2017 17:03:17 +0100
 Subject: Fix spelling errors
-Last-Update: 2015-09-25
-Forwarded: not-needed
+
+---
+ src/xmpp/iq.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/xmpp/iq.c b/src/xmpp/iq.c
+index 496e9ca..6466eb5 100644
 --- a/src/xmpp/iq.c
 +++ b/src/xmpp/iq.c
-@@ -861,13 +861,13 @@
+@@ -861,13 +861,13 @@ _version_result_handler(xmpp_conn_t * const conn, xmpp_stanza_t * const stanza,
  
      xmpp_stanza_t *query = xmpp_stanza_get_child_by_name(stanza, STANZA_NAME_QUERY);
      if (query == NULL) {
