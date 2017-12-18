@@ -1,5 +1,6 @@
-profanity (0.5.1-1) unstable; urgency=medium
+profanity (0.5.1-0.1) unstable; urgency=medium
 
+  * Non-maintainer upload.
   * New upstream version 0.5.1
   * Bump standards to 3.9.8; no changes needed
   * Removed fix-spelling.patch
