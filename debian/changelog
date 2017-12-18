@@ -1,6 +1,8 @@
 profanity (0.5.1-1) unstable; urgency=medium
 
   * New upstream version 0.5.1
+  * Removed fix-spelling.patch
+    - fixed in upstream
 
  -- AJ Jordan <alex@strugee.net>  Mon, 18 Dec 2017 17:22:09 -0500
 
